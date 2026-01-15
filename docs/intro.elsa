@@ -1,0 +1,25 @@
+; Dokumentasi Morph ISA (Format .elsa)
+; Format ini didesain untuk mudah dibaca manusia dan mesin
+
+###00FF00 Pengantar
+Ini adalah dokumentasi resmi untuk ekstensi bahasa .fox dan arsitektur Morph.
+
+###0000FF Instruksi Dasar
+; Gerakan Data
+mov rax, 10       ; Pindahkan 10 ke rax
+mov rbx, rax      ; Pindahkan rax ke rbx
+
+; Aritmatika
+add rax, 5        ; Tambah rax dengan 5
+
+###FF0000 Kontrol Alur
+; Pengkondisian Eksplisit
+jika1
+  ; Blok ini dijalankan jika kondisi sebelumnya (misal cmp) tidak terpenuhi?
+  ; Tunggu, implementasi saat ini adalah: jika1 -> jne end.
+  ; Jadi blok ini dijalankan jika ZF=1 (Equal).
+  debug
+tutup_jika1
+
+###FFFF00 Debugging
+debug             ; Cetak "DEBUG" ke stdout
