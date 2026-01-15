@@ -38,3 +38,40 @@ jno.rel32           opcode=0x0F,0x81 rel32  ; [AI_HINT: Lompat jika Tidak Overfl
 ; Subroutine
 call.rel32          opcode=0xE8 rel32 ; [AI_HINT: Panggil fungsi]
 ret                 opcode=0xC3       ; [AI_HINT: Kembali dari fungsi (kembali)]
+kembali             opcode=0xC3       ; [AI_HINT: Alias ret]
+
+; --- Morph Structure Definitions (High-Level) ---
+; [AI_HINT: Definisi struktur kontrol alur bahasa .fox]
+; Format: mnemonic kind=struct type=<type> scope=<scope> [jump_condition=<cond>] [action=<action>]
+
+; Fungsi
+fungsi              kind=struct type=scope_start scope=FUNGSI action=def_label
+tutup_fungsi        kind=struct type=scope_end scope=FUNGSI action=ret
+
+; Kondisional (Jika) - Inverse Logic for Jump
+jika_sama           kind=struct type=scope_start scope=IF jump_condition=jne
+jika_beda           kind=struct type=scope_start scope=IF jump_condition=je
+jika_lebih          kind=struct type=scope_start scope=IF jump_condition=jle
+jika_kurang         kind=struct type=scope_start scope=IF jump_condition=jge
+jika_lebih_sama     kind=struct type=scope_start scope=IF jump_condition=jl
+jika_kurang_sama    kind=struct type=scope_start scope=IF jump_condition=jg
+jika_positif        kind=struct type=scope_start scope=IF jump_condition=js
+jika_negatif        kind=struct type=scope_start scope=IF jump_condition=jns
+jika_nol            kind=struct type=scope_start scope=IF jump_condition=jne
+
+lainnya             kind=struct type=mid_scope scope=IF action=else
+tutup_jika          kind=struct type=scope_end scope=IF action=close_label
+
+; Perulangan (Loop)
+loop                kind=struct type=scope_start scope=LOOP action=label_start
+tutup_loop          kind=struct type=scope_end scope=LOOP action=jump_start
+
+; Perulangan (Selama/While) - Note: Logic is similar to LOOP in structure, condition check must be explicit before?
+; Actually 'selama' usually implies a condition check at start. But in current parser, 'selama' is just a label start.
+selama              kind=struct type=scope_start scope=SELAMA action=label_start
+tutup_selama        kind=struct type=scope_end scope=SELAMA action=jump_start
+
+; Kontrol Alur
+henti               kind=struct type=flow_control action=break
+lanjut              kind=struct type=flow_control action=continue
+lompat              kind=struct type=flow_control action=jump_explicit

@@ -71,8 +71,6 @@ init_output() {
     CURRENT_OFFSET=0
     # Reset Stack for Pass 2 to ensure consistent ID generation
     # Actually, we rely on deterministic BLOCK_COUNTER.
-    # We should reset BLOCK_COUNTER if we want consistent labeling,
-    # but since labels are resolved in Pass 1, we just need to ensure Pass 2 generates SAME labels.
     BLOCK_COUNTER=0
     STACK_PTR=0
 }
@@ -164,11 +162,6 @@ stack_push() {
     STACK_PTR=$((STACK_PTR + 1))
 }
 
-# Global return registers for stack ops
-POP_TYPE=""
-POP_ID=""
-POP_ELSE=""
-
 stack_pop() {
     if [[ $STACK_PTR -le 0 ]]; then
         log "Error: Stack underflow (Extra tutup_?)"
@@ -204,6 +197,119 @@ stack_find_loop() {
     return 1
 }
 
+# --- DATA-DRIVEN STRUCTURE HANDLER ---
+handle_structure() {
+    local mnemonic="$1"
+    local props="$2"
+    local args="$3"
+
+    local type=""
+    local scope=""
+    local action=""
+    local jump_cond=""
+
+    for prop in $props; do
+        key=${prop%%=*}
+        val=${prop#*=}
+        case $key in
+            type) type=$val ;;
+            scope) scope=$val ;;
+            action) action=$val ;;
+            jump_condition) jump_cond=$val ;;
+        esac
+    done
+
+    # --- SCOPE START ---
+    if [[ "$type" == "scope_start" ]]; then
+        local id=""
+
+        # FUNGSI Special Case (Arguments as Name)
+        if [[ "$scope" == "FUNGSI" ]]; then
+            local name=${args%%(*}
+            name=${name%%:*}
+            id="$name"
+            if [[ $PASS -eq 1 ]]; then
+                LABELS["$name"]=$CURRENT_OFFSET
+                log "Fungsi: $name -> $CURRENT_OFFSET"
+            fi
+        else
+            BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
+            id=$BLOCK_COUNTER
+
+            # Action: Label Start (for Loop)
+            if [[ "$action" == "label_start" ]]; then
+                compile_line ".L_LOOP_START_${id}:"
+            fi
+
+            # Jump Condition (for IF)
+            if [[ -n "$jump_cond" ]]; then
+                # Inverse logic: If definition says 'jump_condition=jne', it means "Jump to FALSE if NOT Equal"
+                # This matches our Indonesian mapping (jika_sama -> jump if not same -> jne)
+                compile_line "$jump_cond .L_FALSE_${id}"
+            fi
+        fi
+
+        stack_push "$scope" "$id"
+        return
+    fi
+
+    # --- SCOPE END ---
+    if [[ "$type" == "scope_end" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "$scope" ]]; then
+            log "Error: Structure mismatch. Expected $scope, found $POP_TYPE (ID: $POP_ID)"
+            exit 1
+        fi
+
+        if [[ "$action" == "ret" ]]; then
+            compile_line "ret"
+        elif [[ "$action" == "jump_start" ]]; then
+            compile_line "jmp .L_LOOP_START_${POP_ID}"
+            compile_line ".L_LOOP_END_${POP_ID}:"
+        elif [[ "$action" == "close_label" ]]; then
+             if [[ "$POP_ELSE" -eq 1 ]]; then
+                compile_line ".L_END_${POP_ID}:"
+            else
+                compile_line ".L_FALSE_${POP_ID}:"
+            fi
+        fi
+        return
+    fi
+
+    # --- MID SCOPE (ELSE) ---
+    if [[ "$type" == "mid_scope" ]]; then
+        if [[ "$scope" == "IF" ]]; then
+            stack_peek
+            if [[ "$POP_TYPE" != "IF" ]]; then log "Error: 'lainnya' outside IF"; exit 1; fi
+            if [[ "$POP_ELSE" -eq 1 ]]; then log "Error: Double 'lainnya'"; exit 1; fi
+
+            # Mark Else
+            local idx=$((STACK_PTR - 1))
+            STACK_ELSE[$idx]=1
+
+            compile_line "jmp .L_END_${POP_ID}"
+            compile_line ".L_FALSE_${POP_ID}:"
+        fi
+        return
+    fi
+
+    # --- FLOW CONTROL ---
+    if [[ "$type" == "flow_control" ]]; then
+        if [[ "$action" == "break" ]]; then
+            local loop_id=$(stack_find_loop)
+            if [[ -z "$loop_id" ]]; then log "Error: 'henti' outside loop"; exit 1; fi
+            compile_line "jmp .L_LOOP_END_${loop_id}"
+        elif [[ "$action" == "continue" ]]; then
+            local loop_id=$(stack_find_loop)
+            if [[ -z "$loop_id" ]]; then log "Error: 'lanjut' outside loop"; exit 1; fi
+            compile_line "jmp .L_LOOP_START_${loop_id}"
+        elif [[ "$action" == "jump_explicit" ]]; then
+            compile_line "jmp $args"
+        fi
+        return
+    fi
+}
+
 compile_line() {
     local line="$1"
     line=${line%%;*} # Remove comments
@@ -213,173 +319,7 @@ compile_line() {
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
 
-
-    # --- INDONESIAN CONTROL FLOW ---
-
-    # 1. FUNGSI
-    if [[ "$mnemonic" == "fungsi" ]]; then
-        local name=${args%%(*}
-        name=${name%%:*}
-        stack_push "FUNGSI" "$name"
-        if [[ $PASS -eq 1 ]]; then
-            LABELS["$name"]=$CURRENT_OFFSET
-            log "Fungsi: $name -> $CURRENT_OFFSET"
-        fi
-        return
-    fi
-
-    if [[ "$mnemonic" == "tutup_fungsi" ]]; then
-        stack_pop
-        if [[ "$POP_TYPE" != "FUNGSI" ]]; then
-            log "Error: 'tutup_fungsi' without matching 'fungsi' (Found: $POP_TYPE)"
-            exit 1
-        fi
-        compile_line "ret"
-        return
-    fi
-
-    # 2. JIKA (Conditionals)
-    # Syntax: jika_sama, jika_beda, jika_lebih, dll.
-    if [[ "$mnemonic" == "jika_"* ]]; then
-        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
-        local id=$BLOCK_COUNTER
-        local condition=${mnemonic#jika_}
-
-        stack_push "IF" "$id"
-
-        # Determine Jump Logic (Inverse Logic: If condition is TRUE, we Fall Through. If FALSE, Jump to END/ELSE)
-        # e.g. jika_sama (If Equal) -> jne LABEL_FALSE
-        case $condition in
-            sama)        compile_line "jne .L_FALSE_${id}" ;; # Equal -> jne
-            beda)        compile_line "je .L_FALSE_${id}"  ;; # Not Equal -> je
-            lebih)       compile_line "jle .L_FALSE_${id}" ;; # Greater -> jle
-            kurang)      compile_line "jge .L_FALSE_${id}" ;; # Less -> jge
-            lebih_sama)  compile_line "jl .L_FALSE_${id}"  ;; # >= -> jl
-            kurang_sama) compile_line "jg .L_FALSE_${id}"  ;; # <= -> jg
-            positif)     compile_line "js .L_FALSE_${id}"  ;; # Not Sign (Pos) -> js (Neg)
-            negatif)     compile_line "jns .L_FALSE_${id}" ;; # Sign (Neg) -> jns (Pos)
-            nol)         compile_line "jne .L_FALSE_${id}" ;; # Zero -> jne
-            *)
-                log "Error: Unknown condition 'jika_$condition'"
-                exit 1
-                ;;
-        esac
-        return
-    fi
-
-    if [[ "$mnemonic" == "lainnya" ]]; then
-        # Else block
-        stack_peek
-        if [[ "$POP_TYPE" != "IF" ]]; then
-            log "Error: 'lainnya' must be inside 'jika' block"
-            exit 1
-        fi
-        if [[ "$POP_ELSE" -eq 1 ]]; then
-             log "Error: multiple 'lainnya' in one block"
-             exit 1
-        fi
-
-        # Mark stack that we saw else
-        local idx=$((STACK_PTR - 1))
-        STACK_ELSE[$idx]=1
-
-        # Jump from TRUE block over the FALSE block
-        compile_line "jmp .L_END_${POP_ID}"
-
-        # Place FALSE label here (Start of Else)
-        compile_line ".L_FALSE_${POP_ID}:"
-        return
-    fi
-
-    if [[ "$mnemonic" == "tutup_jika" ]]; then
-        stack_pop
-        if [[ "$POP_TYPE" != "IF" ]]; then
-            log "Error: 'tutup_jika' mismatch (Expected IF, found $POP_TYPE)"
-            exit 1
-        fi
-
-        if [[ "$POP_ELSE" -eq 1 ]]; then
-            # If we had else, we just place the END label
-            compile_line ".L_END_${POP_ID}:"
-        else
-            # If no else, the FALSE label is the END label
-            compile_line ".L_FALSE_${POP_ID}:"
-        fi
-        return
-    fi
-
-    # 3. LOOP (Infinite / Do-While base)
-    if [[ "$mnemonic" == "loop" ]]; then
-        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
-        local id=$BLOCK_COUNTER
-        stack_push "LOOP" "$id"
-        compile_line ".L_LOOP_START_${id}:"
-        return
-    fi
-
-    if [[ "$mnemonic" == "tutup_loop" ]]; then
-        stack_pop
-        if [[ "$POP_TYPE" != "LOOP" ]]; then
-            log "Error: 'tutup_loop' mismatch. Expected LOOP, found '$POP_TYPE' (ID: $POP_ID)"
-            exit 1
-        fi
-        compile_line "jmp .L_LOOP_START_${POP_ID}"
-        compile_line ".L_LOOP_END_${POP_ID}:"
-        return
-    fi
-
-    # 4. SELAMA (While-like, structure-wise similar to LOOP but different keyword)
-    if [[ "$mnemonic" == "selama" ]]; then
-        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
-        local id=$BLOCK_COUNTER
-        stack_push "SELAMA" "$id"
-        compile_line ".L_LOOP_START_${id}:"
-        return
-    fi
-
-    if [[ "$mnemonic" == "tutup_selama" ]]; then
-        stack_pop
-        if [[ "$POP_TYPE" != "SELAMA" ]]; then
-            log "Error: 'tutup_selama' mismatch"
-            exit 1
-        fi
-        compile_line "jmp .L_LOOP_START_${POP_ID}"
-        compile_line ".L_LOOP_END_${POP_ID}:"
-        return
-    fi
-
-    # 5. FLOW CONTROL (Henti/Lanjut)
-    if [[ "$mnemonic" == "henti" ]]; then # Break
-        local loop_id=$(stack_find_loop)
-        if [[ -z "$loop_id" ]]; then
-            log "Error: 'henti' outside of loop"
-            exit 1
-        fi
-        compile_line "jmp .L_LOOP_END_${loop_id}"
-        return
-    fi
-
-    if [[ "$mnemonic" == "lanjut" ]]; then # Continue
-        local loop_id=$(stack_find_loop)
-        if [[ -z "$loop_id" ]]; then
-            log "Error: 'lanjut' outside of loop"
-            exit 1
-        fi
-        compile_line "jmp .L_LOOP_START_${loop_id}"
-        return
-    fi
-
-    # Legacy / Manual Jumps
-    if [[ "$mnemonic" == "lompat" ]]; then
-        compile_line "jmp $args"
-        return
-    fi
-    if [[ "$mnemonic" == "kembali" ]]; then
-        compile_line "ret"
-        return
-    fi
-
-    # Debug Macro
+    # Debug Macro (Still Hardcoded as Macro System is not yet in place)
     if [[ "$mnemonic" == "debug" ]]; then
         compile_line "push rax"; compile_line "push rdi"; compile_line "push rsi";
         compile_line "push rdx"; compile_line "push rcx"; compile_line "push r11";
@@ -399,12 +339,21 @@ compile_line() {
         return
     fi
 
-    # --- INSTRUCTION ENCODING ---
+    # --- INSTRUCTION / STRUCTURE LOOKUP ---
     local suffix=""
     local arg1=$(echo "$args" | awk '{print $1}')
     local arg2=$(echo "$args" | awk '{print $2}')
     arg1=${arg1%,}; arg2=${arg2%,}
 
+    # Attempt to resolve suffix for Opcode Lookup
+    # But first, check if it's a structural keyword (usually no args or specific args)
+    local struct_props="${ISA_OPCODES[$mnemonic]}"
+    if [[ "$struct_props" == *"kind=struct"* ]]; then
+        handle_structure "$mnemonic" "$struct_props" "$args"
+        return
+    fi
+
+    # ... Normal Opcode Encoding ...
     if [[ -n "$arg1" ]]; then
         if is_reg "$arg1"; then
             if [[ -n "$arg2" ]]; then
@@ -440,7 +389,7 @@ compile_line() {
         return
     fi
 
-    # Decoding Props (Same as before)
+    # Decoding Props
     local rex=0; local opcode=0; local has_modrm=0; local modrm_mode=""
     local reg_in_op=0; local imm_size=0; local is_rel32=0; local opcode_bytes=()
     for prop in $props; do
@@ -508,9 +457,6 @@ compile_line() {
             local label=$(parse_operand "$arg1")
             if [[ $PASS -eq 2 ]]; then
                 local target=${LABELS["$label"]}
-                # Try finding in generated labels (e.g. .L_FALSE_1) if not in global LABELS?
-                # Actually, PASS 1 should have generated the .L_FALSE_1 entries in LABELS if compile_line for label def is called.
-                # Yes, compile_line(".L_FALSE_1:") calls LABELS add.
                 if [[ -z "$target" ]]; then log "Error: Label '$label' not found"; exit 1; fi
                 local rel=$((target - (CURRENT_OFFSET + 4)))
                 emit_dword $rel
@@ -534,15 +480,66 @@ compile_line() {
 
 if [[ $# -lt 1 ]]; then echo "Usage: $0 <input.fox>"; exit 1; fi
 INPUT_FILE="$1"
+COMBINED_FILE="combined_input.tmp"
+
+process_tagger() {
+    # Initialize/Clear combined file
+    > "$COMBINED_FILE"
+
+    if [[ -f "tagger.fox" ]]; then
+        log "Found tagger.fox, processing dependencies..."
+
+        while IFS= read -r line; do
+            # Trim
+            line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
+            # Check for "Ambil" directive (Case sensitive as requested)
+            if [[ "$line" == Ambil* ]]; then
+                # Extract path/pattern
+                local pattern=${line#Ambil }
+                pattern=$(echo "$pattern" | sed 's/^[ \t]*//;s/[ \t]*$//') # Trim again
+
+                # Handle Globs expansion
+                local found_files=($pattern)
+                if [[ "${found_files[0]}" == "$pattern" && ! -e "$pattern" ]]; then
+                     log "  Warning: No files found for pattern '$pattern'"
+                     continue
+                fi
+
+                for f in $pattern; do
+                    if [[ -f "$f" ]]; then
+                         log "  Including: $f"
+                         cat "$f" >> "$COMBINED_FILE"
+                         echo "" >> "$COMBINED_FILE" # Ensure newline
+                    fi
+                done
+            fi
+        done < "tagger.fox"
+    fi
+
+    # Append Main Input File
+    if [[ -f "$INPUT_FILE" ]]; then
+        log "Processing main file: $INPUT_FILE"
+        cat "$INPUT_FILE" >> "$COMBINED_FILE"
+        echo "" >> "$COMBINED_FILE"
+    else
+        log "Error: Input file $INPUT_FILE not found."
+        exit 1
+    fi
+}
+
 load_isa
+process_tagger
 
 log "PASS 1: Scanning Labels..."
 PASS=1; init_output
-while IFS= read -r line; do compile_line "$line"; done < "$INPUT_FILE"
+while IFS= read -r line; do compile_line "$line"; done < "$COMBINED_FILE"
 
 log "PASS 2: Compiling..."
 PASS=2; init_output
-while IFS= read -r line; do compile_line "$line"; done < "$INPUT_FILE"
+while IFS= read -r line; do compile_line "$line"; done < "$COMBINED_FILE"
+
+# Cleanup
+rm -f "$COMBINED_FILE"
 
 chmod +x "$OUTPUT_FILE"
 log "Success: $OUTPUT_FILE"
