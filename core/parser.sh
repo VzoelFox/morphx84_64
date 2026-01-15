@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Morph Parser - The Bootstrap Compiler
-# Reads spec/x84_64.vzoel and compiles .fox to .morph
+# Reads Brainlib definitions and compiles .fox (Indonesian/Hybrid) to .morph (VZOELFOX)
 
 BRAINLIB_DIR="Brainlib"
 OUTPUT_FILE="output.morph"
@@ -11,8 +11,6 @@ PASS=1
 # Associative arrays
 declare -A ISA_OPCODES
 declare -A LABELS
-declare -A UNRESOLVED_LABELS
-
 # Register Mapping
 declare -A REGISTERS
 REGISTERS["rax"]=0
@@ -23,7 +21,6 @@ REGISTERS["rsp"]=4
 REGISTERS["rbp"]=5
 REGISTERS["rsi"]=6
 REGISTERS["rdi"]=7
-# Extended registers would require REX handling logic which we can add later
 REGISTERS["r8"]=8
 REGISTERS["r9"]=9
 REGISTERS["r10"]=10
@@ -48,6 +45,7 @@ load_isa() {
         log "Loading ISA from $spec_file..."
 
         while IFS= read -r line; do
+            # Trim
             line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
             if [[ -z "$line" || "$line" == ";"* ]]; then continue; fi
 
@@ -58,10 +56,9 @@ load_isa() {
     done
 }
 
-# Output handling
 init_output() {
     if [[ $PASS -eq 2 ]]; then
-        # Write Magic Header VZOELFOX
+        # Write Magic Header VZOELFOX (8 bytes)
         printf "VZOELFOX" > "$OUTPUT_FILE"
     fi
     CURRENT_OFFSET=0
@@ -75,18 +72,17 @@ emit_byte() {
     CURRENT_OFFSET=$((CURRENT_OFFSET + 1))
 }
 
-emit_word() { # 2 bytes
-    local val=$1
-    emit_byte $((val & 0xFF))
-    emit_byte $(((val >> 8) & 0xFF))
-}
-
 emit_dword() { # 4 bytes
     local val=$1
-    emit_byte $((val & 0xFF))
-    emit_byte $(((val >> 8) & 0xFF))
-    emit_byte $(((val >> 16) & 0xFF))
-    emit_byte $(((val >> 24) & 0xFF))
+    # Bash handles negative numbers correctly in bitwise ops usually, but let's be safe for 32-bit
+    local b1=$((val & 0xFF))
+    local b2=$(((val >> 8) & 0xFF))
+    local b3=$(((val >> 16) & 0xFF))
+    local b4=$(((val >> 24) & 0xFF))
+    emit_byte $b1
+    emit_byte $b2
+    emit_byte $b3
+    emit_byte $b4
 }
 
 emit_qword() { # 8 bytes
@@ -103,117 +99,86 @@ emit_qword() { # 8 bytes
 
 parse_operand() {
     local op="$1"
-    # Clean up comma
     op=${op%,}
     echo "$op"
 }
 
-is_reg() {
-    local op="$1"
-    if [[ -n "${REGISTERS[$op]}" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
+is_reg() { [[ -n "${REGISTERS[$1]}" ]]; }
 
 is_imm() {
-    local op="$1"
-    if [[ "$op" =~ ^-?[0-9]+$ ]] || [[ "$op" =~ ^0x[0-9a-fA-F]+$ ]]; then
-        return 0
-    fi
+    if [[ "$1" =~ ^-?[0-9]+$ ]] || [[ "$1" =~ ^0x[0-9a-fA-F]+$ ]]; then return 0; fi
     return 1
 }
 
 is_imm8() {
-    local op="$1"
-    if ! is_imm "$op"; then return 1; fi
-    # Check if value fits in signed 8-bit (-128 to 127)
-    # Bash arithmetic helps here
-    if (( op >= -128 && op <= 127 )); then
-        return 0
-    fi
+    if ! is_imm "$1"; then return 1; fi
+    if (( $1 >= -128 && $1 <= 127 )); then return 0; fi
     return 1
 }
 
 is_imm32() {
-    local op="$1"
-    if ! is_imm "$op"; then return 1; fi
-    # Check if value fits in 32-bit (signed or unsigned range usually acceptable for mov)
-    # For simplicity, check if it fits in 32-bit unsigned 0xFFFFFFFF
-    # Bash 64-bit signed arithmetic.
-    # 0xFFFFFFFF = 4294967295
-    # -2147483648 to 2147483647 (signed 32)
-    if (( op >= -2147483648 && op <= 4294967295 )); then
-        return 0
-    fi
+    if ! is_imm "$1"; then return 1; fi
+    # Check signed 32-bit range
+    if (( $1 >= -2147483648 && $1 <= 2147483647 )); then return 0; fi
+    # Also check unsigned 32-bit (common for addresses/masks)
+    if (( $1 >= 0 && $1 <= 4294967295 )); then return 0; fi
     return 1
 }
 
 is_mem_operand() {
-    local op="$1"
-    if [[ "$op" == \[*\] ]]; then
-        return 0 # true
-    else
-        return 1 # false
-    fi
+    if [[ "$1" == \[*\] ]]; then return 0; else return 1; fi
 }
 
 get_mem_reg_id() {
-    local op="$1"
-    # Strip [ and ]
-    op=${op#\[}
-    op=${op%\]}
+    local op="$1"; op=${op#\[}; op=${op%\]};
     get_reg_id "$op"
 }
 
 get_reg_id() {
-    local reg="$1"
-    reg=${reg%,} # remove trailing comma if any
+    local reg="$1"; reg=${reg%,}
     local id=${REGISTERS[$reg]}
-    if [[ -z "$id" ]]; then
-        echo "Error: Unknown register $reg" >&2
-        exit 1
-    fi
+    if [[ -z "$id" ]]; then echo "Error: Unknown register $reg" >&2; exit 1; fi
     echo "$id"
 }
 
 compile_line() {
     local line="$1"
-    # Remove comments from line immediately
-    line=${line%%;*}
-    # Trim trailing whitespace
-    line=$(echo "$line" | sed 's/[ \t]*$//')
-
+    line=${line%%;*} # Remove comments
+    line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//') # Trim
     if [[ -z "$line" ]]; then return; fi
 
-    # Basic tokenizer
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
 
-    # Handle High-Level Constructs
+    # --- INDONESIAN SYNTAX / MACROS ---
+
+    # Fungsi: Label definition
     if [[ "$mnemonic" == "fungsi" ]]; then
-        # Format: fungsi name(...)
         local name=${args%%(*}
+        name=${name%%:*}
         if [[ $PASS -eq 1 ]]; then
             LABELS["$name"]=$CURRENT_OFFSET
-            log "Label defined: $name at $CURRENT_OFFSET"
+            log "Fungsi: $name -> $CURRENT_OFFSET"
         fi
         return
     fi
 
-    if [[ "$mnemonic" == "tutup_fungsi" ]]; then
-        # Emit ret (0xC3)
-        # Check if 'ret' is in ISA
-        # It is: ret opcode=0xC3
+    # Tutup Fungsi: ret
+    if [[ "$mnemonic" == "tutup_fungsi" || "$mnemonic" == "kembali" ]]; then
         compile_line "ret"
         return
     fi
 
-    # Explicit Control Flow (Indonesian)
+    # Lompat: jmp
+    if [[ "$mnemonic" == "lompat" ]]; then
+        compile_line "jmp $args"
+        return
+    fi
+
+    # Jika: Conditional Jump logic
+    # jika1 => jne .L_end_jika1 (Skip block if Not Equal/Zero)
     if [[ "$mnemonic" =~ ^jika[0-9]+$ ]]; then
         local id=${mnemonic#jika}
-        # Emits jump if NOT equal (assumes implicit cmp before)
         compile_line "jne .L_end_jika${id}"
         return
     fi
@@ -224,33 +189,33 @@ compile_line() {
         return
     fi
 
-    # Debug Instruction
+    # Debug Macro: Prints "DEBUG\n" to stdout
     if [[ "$mnemonic" == "debug" ]]; then
-        # Prints "DEBUG\n" using syscall
-        # Save clobbered registers (rax, rdi, rsi, rdx, rcx) - r11 omitted due to lack of REX support yet
+        # Save registers (Clobbered: rax, rdi, rsi, rdx, rcx, r11)
         compile_line "push rax"
         compile_line "push rdi"
         compile_line "push rsi"
         compile_line "push rdx"
         compile_line "push rcx"
+        compile_line "push r11"
 
-        # Prepare string on stack
-        # 0x0A4755424544 = "\nGUBED" (Little Endian for "DEBUG\n")
-        # Stack grows down, so pushing this puts "DEBUG\n" in memory order
+        # Push "DEBUG\n" (Little Endian: 0x0A 0x47 0x55 0x42 0x45 0x44)
+        # 0x0A4755424544
         compile_line "mov rax, 0x0A4755424544"
         compile_line "push rax"
 
-        # Syscall
+        # Syscall write(1, rsp, 6)
         compile_line "mov rax, 1"
         compile_line "mov rdi, 1"
         compile_line "mov rsi, rsp"
         compile_line "mov rdx, 6"
         compile_line "syscall"
 
-        # Cleanup string
+        # Cleanup Stack (Pop string)
         compile_line "pop rax"
 
-        # Restore registers
+        # Restore Registers
+        compile_line "pop r11"
         compile_line "pop rcx"
         compile_line "pop rdx"
         compile_line "pop rsi"
@@ -259,8 +224,8 @@ compile_line() {
         return
     fi
 
+    # Label Definition (name:)
     if [[ "$mnemonic" == *":" ]]; then
-        # Label definition: name:
         local name=${mnemonic%:}
         if [[ $PASS -eq 1 ]]; then
             LABELS["$name"]=$CURRENT_OFFSET
@@ -268,7 +233,9 @@ compile_line() {
         return
     fi
 
-    # Smart Opcode Resolution
+    # --- INSTRUCTION ENCODING ---
+
+    # Smart Opcode Suffix Resolution
     local suffix=""
     local arg1=$(echo "$args" | awk '{print $1}')
     local arg2=$(echo "$args" | awk '{print $2}')
@@ -278,311 +245,151 @@ compile_line() {
     if [[ -n "$arg1" ]]; then
         if is_reg "$arg1"; then
             if [[ -n "$arg2" ]]; then
-                if is_reg "$arg2"; then
-                    suffix=".r64.r64"
-                elif is_mem_operand "$arg2"; then
-                    suffix=".r64.mem"
+                if is_reg "$arg2"; then suffix=".r64.r64";
+                elif is_mem_operand "$arg2"; then suffix=".r64.mem";
                 elif is_imm "$arg2"; then
-                     # Try smallest immediate first (imm8)
-                     if is_imm8 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm8]}" ]]; then
-                         suffix=".r64.imm8"
-                     elif is_imm32 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then
-                         suffix=".r64.imm32"
-                     elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then
-                         suffix=".r64.imm64"
+                     if is_imm8 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm8]}" ]]; then suffix=".r64.imm8";
+                     elif is_imm32 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then suffix=".r64.imm32";
+                     elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then suffix=".r64.imm64";
                      fi
                 fi
             else
-                # Single operand (e.g. push rax or push 10)
-                # Wait, arg1 is Reg. So push rax -> suffix=.r64
+                # Single Reg (e.g., push rax, idiv rax)
                 suffix=".r64"
             fi
-        # Handle imm operand as arg1 (e.g. push 10)
-        elif is_imm "$arg1"; then
-             if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then
-                 suffix=".imm8"
-             elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then
-                 suffix=".imm32"
-             fi
-        # Handle call/jmp label (Arg1 is not Reg, Mem, or Imm -> Label?)
-        elif ! is_reg "$arg1" && ! is_mem_operand "$arg1" && ! is_imm "$arg1"; then
-             # Likely a label
-             if [[ -n "${ISA_OPCODES[${mnemonic}.rel32]}" ]]; then
-                 suffix=".rel32"
-             fi
         elif is_mem_operand "$arg1"; then
-            if [[ -n "$arg2" ]] && is_reg "$arg2"; then
-                suffix=".mem.r64"
-            fi
+             if [[ -n "$arg2" ]] && is_reg "$arg2"; then suffix=".mem.r64";
+             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32"; fi # TODO: check sizes
+        elif is_imm "$arg1"; then
+             # Immediate as first arg (push 10)
+             if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then suffix=".imm8";
+             elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then suffix=".imm32";
+             fi
+        else
+             # Label? (call label, jmp label)
+             if [[ -n "${ISA_OPCODES[${mnemonic}.rel32]}" ]]; then suffix=".rel32"; fi
         fi
     fi
 
-    local lookup_mnemonic="${mnemonic}${suffix}"
-    local props="${ISA_OPCODES[$lookup_mnemonic]}"
-
-    # Fallback to exact match (e.g. syscall, ret, or explicit mnemonic)
-    if [[ -z "$props" ]]; then
-        props="${ISA_OPCODES[$mnemonic]}"
-    fi
+    local lookup="${mnemonic}${suffix}"
+    local props="${ISA_OPCODES[$lookup]}"
+    if [[ -z "$props" ]]; then props="${ISA_OPCODES[$mnemonic]}"; fi # Fallback
 
     if [[ -z "$props" ]]; then
-        log "Unknown instruction: $mnemonic (tried $lookup_mnemonic)"
+        log "Error: Unknown instruction '$mnemonic' (args: $args)"
         return
     fi
 
-    # Defaults
+    # Decoding Props
     local rex=0
     local opcode=0
     local has_modrm=0
+    local modrm_mode=""
     local reg_in_op=0
     local imm_size=0
     local is_rel32=0
+    local opcode_bytes=()
 
-    # Parse Props
     for prop in $props; do
         key=${prop%%=*}
         val=${prop#*=}
-
         case $key in
-            rex)
-                if [[ "$val" == "W" ]]; then
-                    rex=$((rex | 0x48)) # REX.W
-                fi
-                ;;
-            opcode)
-                # Handle multi-byte opcodes like 0x0F,0x05
-                if [[ "$val" == *","* ]]; then
-                    # Split
-                    local op1=${val%%,*}
-                    local op2=${val#*,}
-                    opcode=$((op1)) # assume first byte is handled specially if needed?
-                    # For now, let's just emit instruction bytes directly if logic allows
-                    # But wait, logic is structured around "opcode" being the main byte.
-                    # Let's store opcode bytes in a list
-                    opcode_bytes=(${val//,/ })
-                else
-                    opcode_bytes=($val)
-                fi
-                ;;
-            reg_in_op)
-                reg_in_op=1
-                ;;
-            imm64)
-                imm_size=64
-                ;;
-            imm32)
-                imm_size=32
-                ;;
-            imm8)
-                imm_size=8
-                ;;
-            rel32)
-                imm_size=32
-                is_rel32=1
-                ;;
-            modrm)
-                has_modrm=1
-                modrm_mode=$val # e.g., reg,reg or 0
-                ;;
+            rex) if [[ "$val" == "W" ]]; then rex=$((rex | 0x48)); fi ;;
+            opcode) if [[ "$val" == *","* ]]; then opcode_bytes=(${val//,/ }); else opcode_bytes=($val); fi ;;
+            reg_in_op) reg_in_op=1 ;;
+            imm64) imm_size=64 ;;
+            imm32) imm_size=32 ;;
+            imm8) imm_size=8 ;;
+            rel32) imm_size=32; is_rel32=1 ;;
+            modrm) has_modrm=1; modrm_mode=$val ;;
         esac
     done
 
-    # Parse Arguments
-    # Very simple parsing: split by comma or space
-    local arg1=$(echo "$args" | awk '{print $1}')
-    local arg2=$(echo "$args" | awk '{print $2}')
-
-    # Strip commas
-    arg1=${arg1%,}
-    arg2=${arg2%,}
-
-    # Handle REX.B/R/X for extended registers (r8-r15)
-    # TODO: Implement REX extension logic
-
     # Emit REX
-    if [[ $rex -ne 0 ]]; then
-        emit_byte $rex
-    fi
+    if [[ $rex -ne 0 ]]; then emit_byte $rex; fi
 
-    # Process Opcode & ModRM
-    # This is a simplification. We need to know WHICH argument maps to WHICH modrm field.
-    # spec says: modrm=reg,reg -> arg1 is reg (modrm.reg), arg2 is rm (modrm.rm) ???
-    # Usually Intel syntax is 'mnemonic dst, src'.
-    # Spec: mov.r64.r64 modrm=reg,reg.
-    # Let's assume arg1=dst, arg2=src.
-    # ModRM byte: Mod(2) Reg(3) RM(3)
-
-    # Handle reg_in_op
+    # Handle reg_in_op (Opcode + RegID)
     if [[ $reg_in_op -eq 1 ]]; then
-        # The register ID is added to the last byte of opcode
-        local reg_id=$(get_reg_id "$arg1") # Assumes first arg is the one encoded in opcode
-        local last_idx=$((${#opcode_bytes[@]} - 1))
-        opcode_bytes[$last_idx]=$((opcode_bytes[$last_idx] + reg_id))
+        local r=$(get_reg_id "$arg1")
+        local idx=$((${#opcode_bytes[@]} - 1))
+        opcode_bytes[$idx]=$((opcode_bytes[$idx] + r))
     fi
 
-    # Emit Opcode Bytes
-    for b in "${opcode_bytes[@]}"; do
-        emit_byte $b
-    done
+    # Emit Opcode
+    for b in "${opcode_bytes[@]}"; do emit_byte $b; done
 
     # Emit ModRM
     if [[ $has_modrm -eq 1 ]]; then
+        local modrm=0
         if [[ "$modrm_mode" == "reg,reg" ]]; then
-            # Mod=11 (Direct Register)
-            local r1=$(get_reg_id "$arg2") # Src -> Reg
-            local r2=$(get_reg_id "$arg1") # Dst -> RM
-            # ModRM = 11 (2 bits) | Reg (3 bits) | RM (3 bits)
-            # 0xC0 + (r1 << 3) + r2
-            local modrm=$((0xC0 + (r1 << 3) + r2))
+            # Mod=11 (C0)
+            local r_src=$(get_reg_id "$arg2"); local r_dst=$(get_reg_id "$arg1")
+            modrm=$((0xC0 + (r_src << 3) + r_dst))
             emit_byte $modrm
-
-        elif [[ "$modrm_mode" == "mem,reg" ]]; then
-            # mov.mem.r64 [dest], src
-            # Arg1 is Mem (RM), Arg2 is Reg (Reg)
-            local r_reg=$(get_reg_id "$arg2")
-
-            # Parse Arg1
-            if is_mem_operand "$arg1"; then
-                local r_rm=$(get_mem_reg_id "$arg1")
-                # TODO: Handle RSP/RBP special cases (SIB/Disp)
-                if [[ $r_rm -eq 4 ]]; then # RSP
-                     # Mod=00, Reg=r_reg, RM=100 (4) -> SIB follows
-                     # SIB for [rsp]: Scale=0, Index=4(none), Base=4(rsp) -> 0x24
-                     local modrm=$((0x00 + (r_reg << 3) + 4))
-                     emit_byte $modrm
-                     emit_byte 0x24
-                elif [[ $r_rm -eq 5 ]]; then # RBP
-                     # [rbp] usually means [rip+disp32] in 64-bit or [rbp+0] with mod=01
-                     # For simplicity, let's allow [rbp] as [rbp+0] (Mod=01, Disp8=0)
-                     # Mod=01 (0x40)
-                     local modrm=$((0x40 + (r_reg << 3) + 5))
-                     emit_byte $modrm
-                     emit_byte 0x00
-                else
-                     # Mod=00 (Indirect), Reg=r_reg, RM=r_rm
-                     local modrm=$((0x00 + (r_reg << 3) + r_rm))
-                     emit_byte $modrm
-                fi
-            else
-                log "Error: Expected memory operand for arg1"
-                exit 1
-            fi
-
-        elif [[ "$modrm_mode" == "reg,mem" ]]; then
-            # mov.r64.mem dest, [src]
-            # Arg1 is Reg (Reg), Arg2 is Mem (RM)
-            local r_reg=$(get_reg_id "$arg1")
-
-            if is_mem_operand "$arg2"; then
-                local r_rm=$(get_mem_reg_id "$arg2")
-                if [[ $r_rm -eq 4 ]]; then # RSP
-                     local modrm=$((0x00 + (r_reg << 3) + 4))
-                     emit_byte $modrm
-                     emit_byte 0x24
-                elif [[ $r_rm -eq 5 ]]; then # RBP
-                     local modrm=$((0x40 + (r_reg << 3) + 5))
-                     emit_byte $modrm
-                     emit_byte 0x00
-                else
-                     local modrm=$((0x00 + (r_reg << 3) + r_rm))
-                     emit_byte $modrm
-                fi
-            else
-                log "Error: Expected memory operand for arg2"
-                exit 1
-            fi
-
         elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
-             # Case for add.r64.imm32 modrm=0, sub.r64.imm32 modrm=5
-             # ModRM extension. /digit means Reg field is that digit.
-             # Dst is RM.
-             # Mod=11 (Register)
-             local r_ext=$modrm_mode
-             local r_dst=$(get_reg_id "$arg1")
-             local modrm=$((0xC0 + (r_ext << 3) + r_dst))
-             emit_byte $modrm
+            # Extension (e.g. /0)
+            local ext=$modrm_mode
+            local r_rm=$(get_reg_id "$arg1")
+            modrm=$((0xC0 + (ext << 3) + r_rm))
+            emit_byte $modrm
+        elif [[ "$modrm_mode" == "reg,mem" ]]; then
+             # reg, [mem] -> Dest=Reg, Src=Mem
+             local r_reg=$(get_reg_id "$arg1")
+             local r_rm=$(get_mem_reg_id "$arg2")
+             # Simple [reg] support
+             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24; # SIB
+             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00; # [rbp+0]
+             else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
+        elif [[ "$modrm_mode" == "mem,reg" ]]; then
+             # [mem], reg -> Dest=Mem, Src=Reg
+             local r_reg=$(get_reg_id "$arg2")
+             local r_rm=$(get_mem_reg_id "$arg1")
+             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
+             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00;
+             else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
         fi
     fi
 
-    # Emit Immediate
-    if [[ $imm_size -eq 64 ]]; then
-        # Arg2 is immediate
-        local imm=$(parse_operand "$arg2")
-        emit_qword "$imm"
-    elif [[ $imm_size -eq 32 ]]; then
-        local arg_val=""
+    # Emit Immediates
+    if [[ $imm_size -eq 32 ]]; then
         if [[ $is_rel32 -eq 1 ]]; then
-             # Handle Relative Jump (call, jmp, je)
-             # Arg is a label
-             local label=$(parse_operand "$arg1") # e.g. call label
-             if [[ $PASS -eq 2 ]]; then
-                 local target=${LABELS["$label"]}
-                 if [[ -z "$target" ]]; then
-                     log "Error: Undefined label '$label'"
-                     exit 1
-                 fi
-                 # Calculate relative offset
-                 # rel32 = target - (current + 4)
-                 # Wait, we need to know WHERE the immediate starts?
-                 # current is start of instruction? No, emit_byte increments CURRENT_OFFSET.
-                 # So CURRENT_OFFSET is now at the start of the immediate (since we emitted opcode/modrm).
-                 # rel32 is relative to the END of the instruction.
-                 # So target - (current + 4).
-                 local rel=$((target - (CURRENT_OFFSET + 4)))
-                 # Handle negative numbers for 32-bit (bash handles them as signed 64-bit)
-                 emit_dword "$rel"
-             else
-                 # Pass 1: just advance
-                 emit_dword 0
-             fi
+            local label=$(parse_operand "$arg1")
+            if [[ $PASS -eq 2 ]]; then
+                local target=${LABELS["$label"]}
+                if [[ -z "$target" ]]; then log "Error: Label '$label' not found"; exit 1; fi
+                # rel32 = target - (current_offset + 4)
+                # Note: current_offset is at START of imm32.
+                local rel=$((target - (CURRENT_OFFSET + 4)))
+                emit_dword $rel
+            else
+                emit_dword 0
+            fi
         else
-             local imm=$(parse_operand "$arg2")
-             # If arg2 is missing, maybe it's arg1 (e.g. add rax, imm)?
-             # For add.r64.imm32, arg2 is imm.
-             # Check if instruction uses arg1 as imm? No, usually arg2.
-             # What if imm is a Label? (e.g. mov rax, label_addr) - Not supported yet.
-             emit_dword "$imm"
+            local imm=$(parse_operand "$arg2")
+            if [[ -z "$imm" ]]; then imm=$(parse_operand "$arg1"); fi
+            emit_dword "$imm"
         fi
     elif [[ $imm_size -eq 8 ]]; then
         local imm=$(parse_operand "$arg2")
-        # Fallback if arg2 empty (e.g. push 10 -> arg1=10, arg2 empty)
-        if [[ -z "$imm" ]]; then
-            imm=$(parse_operand "$arg1")
-        fi
-        # Remove comments if any
-        imm=${imm%%;*}
+        if [[ -z "$imm" ]]; then imm=$(parse_operand "$arg1"); fi
         emit_byte $((imm & 0xFF))
+    elif [[ $imm_size -eq 64 ]]; then
+        local imm=$(parse_operand "$arg2")
+        emit_qword "$imm"
     fi
 }
 
-# Main
-if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <input.fox>"
-    exit 1
-fi
-
+if [[ $# -lt 1 ]]; then echo "Usage: $0 <input.fox>"; exit 1; fi
 INPUT_FILE="$1"
-
 load_isa
 
-# PASS 1
-log "PASS 1: Collecting labels..."
-PASS=1
-init_output
-while IFS= read -r line; do
-    line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
-    if [[ -z "$line" || "$line" == ";"* ]]; then continue; fi
-    compile_line "$line"
-done < "$INPUT_FILE"
+log "PASS 1: Scanning Labels..."
+PASS=1; init_output
+while IFS= read -r line; do compile_line "$line"; done < "$INPUT_FILE"
 
-# PASS 2
-log "PASS 2: Generating code..."
-PASS=2
-init_output
-while IFS= read -r line; do
-    line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
-    if [[ -z "$line" || "$line" == ";"* ]]; then continue; fi
-    compile_line "$line"
-done < "$INPUT_FILE"
+log "PASS 2: Compiling..."
+PASS=2; init_output
+while IFS= read -r line; do compile_line "$line"; done < "$INPUT_FILE"
 
-log "Done. Output: $OUTPUT_FILE"
+chmod +x "$OUTPUT_FILE"
+log "Success: $OUTPUT_FILE"
