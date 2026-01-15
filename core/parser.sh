@@ -125,6 +125,31 @@ is_imm() {
     return 1
 }
 
+is_imm8() {
+    local op="$1"
+    if ! is_imm "$op"; then return 1; fi
+    # Check if value fits in signed 8-bit (-128 to 127)
+    # Bash arithmetic helps here
+    if (( op >= -128 && op <= 127 )); then
+        return 0
+    fi
+    return 1
+}
+
+is_imm32() {
+    local op="$1"
+    if ! is_imm "$op"; then return 1; fi
+    # Check if value fits in 32-bit (signed or unsigned range usually acceptable for mov)
+    # For simplicity, check if it fits in 32-bit unsigned 0xFFFFFFFF
+    # Bash 64-bit signed arithmetic.
+    # 0xFFFFFFFF = 4294967295
+    # -2147483648 to 2147483647 (signed 32)
+    if (( op >= -2147483648 && op <= 4294967295 )); then
+        return 0
+    fi
+    return 1
+}
+
 is_mem_operand() {
     local op="$1"
     if [[ "$op" == \[*\] ]]; then
@@ -155,6 +180,13 @@ get_reg_id() {
 
 compile_line() {
     local line="$1"
+    # Remove comments from line immediately
+    line=${line%%;*}
+    # Trim trailing whitespace
+    line=$(echo "$line" | sed 's/[ \t]*$//')
+
+    if [[ -z "$line" ]]; then return; fi
+
     # Basic tokenizer
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
@@ -203,6 +235,8 @@ compile_line() {
         compile_line "push rcx"
 
         # Prepare string on stack
+        # 0x0A4755424544 = "\nGUBED" (Little Endian for "DEBUG\n")
+        # Stack grows down, so pushing this puts "DEBUG\n" in memory order
         compile_line "mov rax, 0x0A4755424544"
         compile_line "push rax"
 
@@ -249,16 +283,27 @@ compile_line() {
                 elif is_mem_operand "$arg2"; then
                     suffix=".r64.mem"
                 elif is_imm "$arg2"; then
-                     if [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then
-                         suffix=".r64.imm64"
-                     elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then
+                     # Try smallest immediate first (imm8)
+                     if is_imm8 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm8]}" ]]; then
+                         suffix=".r64.imm8"
+                     elif is_imm32 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then
                          suffix=".r64.imm32"
+                     elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then
+                         suffix=".r64.imm64"
                      fi
                 fi
             else
-                # Single register operand (e.g. push rax)
+                # Single operand (e.g. push rax or push 10)
+                # Wait, arg1 is Reg. So push rax -> suffix=.r64
                 suffix=".r64"
             fi
+        # Handle imm operand as arg1 (e.g. push 10)
+        elif is_imm "$arg1"; then
+             if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then
+                 suffix=".imm8"
+             elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then
+                 suffix=".imm32"
+             fi
         # Handle call/jmp label (Arg1 is not Reg, Mem, or Imm -> Label?)
         elif ! is_reg "$arg1" && ! is_mem_operand "$arg1" && ! is_imm "$arg1"; then
              # Likely a label
@@ -327,6 +372,9 @@ compile_line() {
                 ;;
             imm32)
                 imm_size=32
+                ;;
+            imm8)
+                imm_size=8
                 ;;
             rel32)
                 imm_size=32
@@ -495,6 +543,15 @@ compile_line() {
              # What if imm is a Label? (e.g. mov rax, label_addr) - Not supported yet.
              emit_dword "$imm"
         fi
+    elif [[ $imm_size -eq 8 ]]; then
+        local imm=$(parse_operand "$arg2")
+        # Fallback if arg2 empty (e.g. push 10 -> arg1=10, arg2 empty)
+        if [[ -z "$imm" ]]; then
+            imm=$(parse_operand "$arg1")
+        fi
+        # Remove comments if any
+        imm=${imm%%;*}
+        emit_byte $((imm & 0xFF))
     fi
 }
 

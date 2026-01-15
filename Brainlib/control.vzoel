@@ -1,7 +1,0 @@
-; Morph Control Flow Instructions
-
-jmp.rel32           opcode=0xE9 rel32
-je.rel32            opcode=0x0F,0x84 rel32
-jne.rel32           opcode=0x0F,0x85 rel32
-call.rel32          opcode=0xE8 rel32
-ret                 opcode=0xC3
