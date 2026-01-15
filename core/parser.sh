@@ -30,6 +30,13 @@ REGISTERS["r13"]=13
 REGISTERS["r14"]=14
 REGISTERS["r15"]=15
 
+# Control Flow Stack
+declare -a STACK_TYPE
+declare -a STACK_ID
+declare -a STACK_ELSE
+STACK_PTR=0
+BLOCK_COUNTER=0
+
 log() {
     echo "[PARSER] $1" >&2
 }
@@ -62,6 +69,12 @@ init_output() {
         printf "VZOELFOX" > "$OUTPUT_FILE"
     fi
     CURRENT_OFFSET=0
+    # Reset Stack for Pass 2 to ensure consistent ID generation
+    # Actually, we rely on deterministic BLOCK_COUNTER.
+    # We should reset BLOCK_COUNTER if we want consistent labeling,
+    # but since labels are resolved in Pass 1, we just need to ensure Pass 2 generates SAME labels.
+    BLOCK_COUNTER=0
+    STACK_PTR=0
 }
 
 emit_byte() {
@@ -141,6 +154,56 @@ get_reg_id() {
     echo "$id"
 }
 
+# --- STACK OPERATIONS ---
+stack_push() {
+    local type=$1
+    local id=$2
+    STACK_TYPE[$STACK_PTR]=$type
+    STACK_ID[$STACK_PTR]=$id
+    STACK_ELSE[$STACK_PTR]=0 # 0=NoElse, 1=ElsePresent
+    STACK_PTR=$((STACK_PTR + 1))
+}
+
+# Global return registers for stack ops
+POP_TYPE=""
+POP_ID=""
+POP_ELSE=""
+
+stack_pop() {
+    if [[ $STACK_PTR -le 0 ]]; then
+        log "Error: Stack underflow (Extra tutup_?)"
+        exit 1
+    fi
+    STACK_PTR=$((STACK_PTR - 1))
+    POP_TYPE="${STACK_TYPE[$STACK_PTR]}"
+    POP_ID="${STACK_ID[$STACK_PTR]}"
+    POP_ELSE="${STACK_ELSE[$STACK_PTR]}"
+}
+
+stack_peek() {
+    if [[ $STACK_PTR -le 0 ]]; then
+        POP_TYPE="EMPTY"; POP_ID=""; POP_ELSE="";
+        return;
+    fi
+    local idx=$((STACK_PTR - 1))
+    POP_TYPE="${STACK_TYPE[$idx]}"
+    POP_ID="${STACK_ID[$idx]}"
+    POP_ELSE="${STACK_ELSE[$idx]}"
+}
+
+# Find nearest Loop in stack (for break/continue)
+stack_find_loop() {
+    local idx=$((STACK_PTR - 1))
+    while [[ $idx -ge 0 ]]; do
+        if [[ "${STACK_TYPE[$idx]}" == "LOOP" || "${STACK_TYPE[$idx]}" == "SELAMA" ]]; then
+            echo "${STACK_ID[$idx]}"
+            return 0
+        fi
+        idx=$((idx - 1))
+    done
+    return 1
+}
+
 compile_line() {
     local line="$1"
     line=${line%%;*} # Remove comments
@@ -150,12 +213,14 @@ compile_line() {
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
 
-    # --- INDONESIAN SYNTAX / MACROS ---
 
-    # Fungsi: Label definition
+    # --- INDONESIAN CONTROL FLOW ---
+
+    # 1. FUNGSI
     if [[ "$mnemonic" == "fungsi" ]]; then
         local name=${args%%(*}
         name=${name%%:*}
+        stack_push "FUNGSI" "$name"
         if [[ $PASS -eq 1 ]]; then
             LABELS["$name"]=$CURRENT_OFFSET
             log "Fungsi: $name -> $CURRENT_OFFSET"
@@ -163,84 +228,182 @@ compile_line() {
         return
     fi
 
-    # Tutup Fungsi: ret
-    if [[ "$mnemonic" == "tutup_fungsi" || "$mnemonic" == "kembali" ]]; then
+    if [[ "$mnemonic" == "tutup_fungsi" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "FUNGSI" ]]; then
+            log "Error: 'tutup_fungsi' without matching 'fungsi' (Found: $POP_TYPE)"
+            exit 1
+        fi
         compile_line "ret"
         return
     fi
 
-    # Lompat: jmp
+    # 2. JIKA (Conditionals)
+    # Syntax: jika_sama, jika_beda, jika_lebih, dll.
+    if [[ "$mnemonic" == "jika_"* ]]; then
+        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
+        local id=$BLOCK_COUNTER
+        local condition=${mnemonic#jika_}
+
+        stack_push "IF" "$id"
+
+        # Determine Jump Logic (Inverse Logic: If condition is TRUE, we Fall Through. If FALSE, Jump to END/ELSE)
+        # e.g. jika_sama (If Equal) -> jne LABEL_FALSE
+        case $condition in
+            sama)        compile_line "jne .L_FALSE_${id}" ;; # Equal -> jne
+            beda)        compile_line "je .L_FALSE_${id}"  ;; # Not Equal -> je
+            lebih)       compile_line "jle .L_FALSE_${id}" ;; # Greater -> jle
+            kurang)      compile_line "jge .L_FALSE_${id}" ;; # Less -> jge
+            lebih_sama)  compile_line "jl .L_FALSE_${id}"  ;; # >= -> jl
+            kurang_sama) compile_line "jg .L_FALSE_${id}"  ;; # <= -> jg
+            positif)     compile_line "js .L_FALSE_${id}"  ;; # Not Sign (Pos) -> js (Neg)
+            negatif)     compile_line "jns .L_FALSE_${id}" ;; # Sign (Neg) -> jns (Pos)
+            nol)         compile_line "jne .L_FALSE_${id}" ;; # Zero -> jne
+            *)
+                log "Error: Unknown condition 'jika_$condition'"
+                exit 1
+                ;;
+        esac
+        return
+    fi
+
+    if [[ "$mnemonic" == "lainnya" ]]; then
+        # Else block
+        stack_peek
+        if [[ "$POP_TYPE" != "IF" ]]; then
+            log "Error: 'lainnya' must be inside 'jika' block"
+            exit 1
+        fi
+        if [[ "$POP_ELSE" -eq 1 ]]; then
+             log "Error: multiple 'lainnya' in one block"
+             exit 1
+        fi
+
+        # Mark stack that we saw else
+        local idx=$((STACK_PTR - 1))
+        STACK_ELSE[$idx]=1
+
+        # Jump from TRUE block over the FALSE block
+        compile_line "jmp .L_END_${POP_ID}"
+
+        # Place FALSE label here (Start of Else)
+        compile_line ".L_FALSE_${POP_ID}:"
+        return
+    fi
+
+    if [[ "$mnemonic" == "tutup_jika" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "IF" ]]; then
+            log "Error: 'tutup_jika' mismatch (Expected IF, found $POP_TYPE)"
+            exit 1
+        fi
+
+        if [[ "$POP_ELSE" -eq 1 ]]; then
+            # If we had else, we just place the END label
+            compile_line ".L_END_${POP_ID}:"
+        else
+            # If no else, the FALSE label is the END label
+            compile_line ".L_FALSE_${POP_ID}:"
+        fi
+        return
+    fi
+
+    # 3. LOOP (Infinite / Do-While base)
+    if [[ "$mnemonic" == "loop" ]]; then
+        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
+        local id=$BLOCK_COUNTER
+        stack_push "LOOP" "$id"
+        compile_line ".L_LOOP_START_${id}:"
+        return
+    fi
+
+    if [[ "$mnemonic" == "tutup_loop" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "LOOP" ]]; then
+            log "Error: 'tutup_loop' mismatch. Expected LOOP, found '$POP_TYPE' (ID: $POP_ID)"
+            exit 1
+        fi
+        compile_line "jmp .L_LOOP_START_${POP_ID}"
+        compile_line ".L_LOOP_END_${POP_ID}:"
+        return
+    fi
+
+    # 4. SELAMA (While-like, structure-wise similar to LOOP but different keyword)
+    if [[ "$mnemonic" == "selama" ]]; then
+        BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
+        local id=$BLOCK_COUNTER
+        stack_push "SELAMA" "$id"
+        compile_line ".L_LOOP_START_${id}:"
+        return
+    fi
+
+    if [[ "$mnemonic" == "tutup_selama" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "SELAMA" ]]; then
+            log "Error: 'tutup_selama' mismatch"
+            exit 1
+        fi
+        compile_line "jmp .L_LOOP_START_${POP_ID}"
+        compile_line ".L_LOOP_END_${POP_ID}:"
+        return
+    fi
+
+    # 5. FLOW CONTROL (Henti/Lanjut)
+    if [[ "$mnemonic" == "henti" ]]; then # Break
+        local loop_id=$(stack_find_loop)
+        if [[ -z "$loop_id" ]]; then
+            log "Error: 'henti' outside of loop"
+            exit 1
+        fi
+        compile_line "jmp .L_LOOP_END_${loop_id}"
+        return
+    fi
+
+    if [[ "$mnemonic" == "lanjut" ]]; then # Continue
+        local loop_id=$(stack_find_loop)
+        if [[ -z "$loop_id" ]]; then
+            log "Error: 'lanjut' outside of loop"
+            exit 1
+        fi
+        compile_line "jmp .L_LOOP_START_${loop_id}"
+        return
+    fi
+
+    # Legacy / Manual Jumps
     if [[ "$mnemonic" == "lompat" ]]; then
         compile_line "jmp $args"
         return
     fi
-
-    # Jika: Conditional Jump logic
-    # jika1 => jne .L_end_jika1 (Skip block if Not Equal/Zero)
-    if [[ "$mnemonic" =~ ^jika[0-9]+$ ]]; then
-        local id=${mnemonic#jika}
-        compile_line "jne .L_end_jika${id}"
+    if [[ "$mnemonic" == "kembali" ]]; then
+        compile_line "ret"
         return
     fi
 
-    if [[ "$mnemonic" =~ ^tutup_jika[0-9]+$ ]]; then
-        local id=${mnemonic#tutup_jika}
-        compile_line ".L_end_jika${id}:"
-        return
-    fi
-
-    # Debug Macro: Prints "DEBUG\n" to stdout
+    # Debug Macro
     if [[ "$mnemonic" == "debug" ]]; then
-        # Save registers (Clobbered: rax, rdi, rsi, rdx, rcx, r11)
+        compile_line "push rax"; compile_line "push rdi"; compile_line "push rsi";
+        compile_line "push rdx"; compile_line "push rcx"; compile_line "push r11";
+        compile_line "mov rax, 0x0A4755424544" # "DEBUG\n"
         compile_line "push rax"
-        compile_line "push rdi"
-        compile_line "push rsi"
-        compile_line "push rdx"
-        compile_line "push rcx"
-        compile_line "push r11"
-
-        # Push "DEBUG\n" (Little Endian: 0x0A 0x47 0x55 0x42 0x45 0x44)
-        # 0x0A4755424544
-        compile_line "mov rax, 0x0A4755424544"
-        compile_line "push rax"
-
-        # Syscall write(1, rsp, 6)
-        compile_line "mov rax, 1"
-        compile_line "mov rdi, 1"
-        compile_line "mov rsi, rsp"
-        compile_line "mov rdx, 6"
-        compile_line "syscall"
-
-        # Cleanup Stack (Pop string)
-        compile_line "pop rax"
-
-        # Restore Registers
-        compile_line "pop r11"
-        compile_line "pop rcx"
-        compile_line "pop rdx"
-        compile_line "pop rsi"
-        compile_line "pop rdi"
-        compile_line "pop rax"
+        compile_line "mov rax, 1"; compile_line "mov rdi, 1";
+        compile_line "mov rsi, rsp"; compile_line "mov rdx, 6"; compile_line "syscall"
+        compile_line "pop rax"; compile_line "pop r11"; compile_line "pop rcx";
+        compile_line "pop rdx"; compile_line "pop rsi"; compile_line "pop rdi"; compile_line "pop rax"
         return
     fi
 
     # Label Definition (name:)
     if [[ "$mnemonic" == *":" ]]; then
         local name=${mnemonic%:}
-        if [[ $PASS -eq 1 ]]; then
-            LABELS["$name"]=$CURRENT_OFFSET
-        fi
+        if [[ $PASS -eq 1 ]]; then LABELS["$name"]=$CURRENT_OFFSET; fi
         return
     fi
 
     # --- INSTRUCTION ENCODING ---
-
-    # Smart Opcode Suffix Resolution
     local suffix=""
     local arg1=$(echo "$args" | awk '{print $1}')
     local arg2=$(echo "$args" | awk '{print $2}')
-    arg1=${arg1%,}
-    arg2=${arg2%,}
+    arg1=${arg1%,}; arg2=${arg2%,}
 
     if [[ -n "$arg1" ]]; then
         if is_reg "$arg1"; then
@@ -254,42 +417,32 @@ compile_line() {
                      fi
                 fi
             else
-                # Single Reg (e.g., push rax, idiv rax)
                 suffix=".r64"
             fi
         elif is_mem_operand "$arg1"; then
              if [[ -n "$arg2" ]] && is_reg "$arg2"; then suffix=".mem.r64";
-             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32"; fi # TODO: check sizes
+             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32"; fi
         elif is_imm "$arg1"; then
-             # Immediate as first arg (push 10)
              if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then suffix=".imm8";
              elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then suffix=".imm32";
              fi
         else
-             # Label? (call label, jmp label)
              if [[ -n "${ISA_OPCODES[${mnemonic}.rel32]}" ]]; then suffix=".rel32"; fi
         fi
     fi
 
     local lookup="${mnemonic}${suffix}"
     local props="${ISA_OPCODES[$lookup]}"
-    if [[ -z "$props" ]]; then props="${ISA_OPCODES[$mnemonic]}"; fi # Fallback
+    if [[ -z "$props" ]]; then props="${ISA_OPCODES[$mnemonic]}"; fi
 
     if [[ -z "$props" ]]; then
         log "Error: Unknown instruction '$mnemonic' (args: $args)"
         return
     fi
 
-    # Decoding Props
-    local rex=0
-    local opcode=0
-    local has_modrm=0
-    local modrm_mode=""
-    local reg_in_op=0
-    local imm_size=0
-    local is_rel32=0
-    local opcode_bytes=()
-
+    # Decoding Props (Same as before)
+    local rex=0; local opcode=0; local has_modrm=0; local modrm_mode=""
+    local reg_in_op=0; local imm_size=0; local is_rel32=0; local opcode_bytes=()
     for prop in $props; do
         key=${prop%%=*}
         val=${prop#*=}
@@ -305,60 +458,60 @@ compile_line() {
         esac
     done
 
+    # Handle reg_in_op (Calculate REX.B if needed)
+    local r_val=0
+    if [[ $reg_in_op -eq 1 ]]; then
+        r_val=$(get_reg_id "$arg1")
+        if [[ $r_val -ge 8 ]]; then
+            rex=$((rex | 0x41)) # REX.B
+            r_val=$((r_val - 8))
+        fi
+    fi
+
     # Emit REX
     if [[ $rex -ne 0 ]]; then emit_byte $rex; fi
 
-    # Handle reg_in_op (Opcode + RegID)
+    # Apply Register to Opcode
     if [[ $reg_in_op -eq 1 ]]; then
-        local r=$(get_reg_id "$arg1")
         local idx=$((${#opcode_bytes[@]} - 1))
-        opcode_bytes[$idx]=$((opcode_bytes[$idx] + r))
+        opcode_bytes[$idx]=$((opcode_bytes[$idx] + r_val))
     fi
 
     # Emit Opcode
     for b in "${opcode_bytes[@]}"; do emit_byte $b; done
-
     # Emit ModRM
     if [[ $has_modrm -eq 1 ]]; then
         local modrm=0
         if [[ "$modrm_mode" == "reg,reg" ]]; then
-            # Mod=11 (C0)
             local r_src=$(get_reg_id "$arg2"); local r_dst=$(get_reg_id "$arg1")
             modrm=$((0xC0 + (r_src << 3) + r_dst))
             emit_byte $modrm
         elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
-            # Extension (e.g. /0)
-            local ext=$modrm_mode
-            local r_rm=$(get_reg_id "$arg1")
+            local ext=$modrm_mode; local r_rm=$(get_reg_id "$arg1")
             modrm=$((0xC0 + (ext << 3) + r_rm))
             emit_byte $modrm
         elif [[ "$modrm_mode" == "reg,mem" ]]; then
-             # reg, [mem] -> Dest=Reg, Src=Mem
-             local r_reg=$(get_reg_id "$arg1")
-             local r_rm=$(get_mem_reg_id "$arg2")
-             # Simple [reg] support
-             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24; # SIB
-             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00; # [rbp+0]
+             local r_reg=$(get_reg_id "$arg1"); local r_rm=$(get_mem_reg_id "$arg2")
+             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
+             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00;
              else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
         elif [[ "$modrm_mode" == "mem,reg" ]]; then
-             # [mem], reg -> Dest=Mem, Src=Reg
-             local r_reg=$(get_reg_id "$arg2")
-             local r_rm=$(get_mem_reg_id "$arg1")
+             local r_reg=$(get_reg_id "$arg2"); local r_rm=$(get_mem_reg_id "$arg1")
              if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
              elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00;
              else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
         fi
     fi
-
     # Emit Immediates
     if [[ $imm_size -eq 32 ]]; then
         if [[ $is_rel32 -eq 1 ]]; then
             local label=$(parse_operand "$arg1")
             if [[ $PASS -eq 2 ]]; then
                 local target=${LABELS["$label"]}
+                # Try finding in generated labels (e.g. .L_FALSE_1) if not in global LABELS?
+                # Actually, PASS 1 should have generated the .L_FALSE_1 entries in LABELS if compile_line for label def is called.
+                # Yes, compile_line(".L_FALSE_1:") calls LABELS add.
                 if [[ -z "$target" ]]; then log "Error: Label '$label' not found"; exit 1; fi
-                # rel32 = target - (current_offset + 4)
-                # Note: current_offset is at START of imm32.
                 local rel=$((target - (CURRENT_OFFSET + 4)))
                 emit_dword $rel
             else

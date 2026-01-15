@@ -1,0 +1,102 @@
+fungsi main
+  ; --- TEST 1: NESTED IF ---
+  debug ; START TEST
+
+  mov rax, 10
+  mov rbx, 10
+  cmp rax, rbx
+  jika_sama
+      mov rax, 20
+      cmp rax, rbx
+      jika_lebih
+          ; Should print A (0x41)
+          mov rax, 0x0A41
+          push rax
+          mov rax, 1
+          mov rdi, 1
+          mov rsi, rsp
+          mov rdx, 2
+          syscall
+          pop rax
+      tutup_jika
+  tutup_jika
+
+  ; --- TEST 2: IF - ELSE ---
+  mov rax, 5
+  mov rbx, 10
+  cmp rax, rbx
+  jika_lebih
+      ; Should NOT happen
+      mov rax, 0x0A58 ; X
+      push rax
+      mov rax, 1
+      mov rdi, 1
+      mov rsi, rsp
+      mov rdx, 2
+      syscall
+      pop rax
+  lainnya
+      ; Should print B (0x42)
+      mov rax, 0x0A42
+      push rax
+      mov rax, 1
+      mov rdi, 1
+      mov rsi, rsp
+      mov rdx, 2
+      syscall
+      pop rax
+  tutup_jika
+
+  ; --- TEST 3: LOOP with BREAK ---
+  mov rcx, 0
+
+  loop
+      inc rcx
+      cmp rcx, 3
+      jika_lebih
+          henti
+      tutup_jika
+
+      ; Print C (0x43) inside loop
+      push rcx ; Save Counter
+      mov rax, 0x0A43
+      push rax
+      mov rax, 1
+      mov rdi, 1
+      mov rsi, rsp
+      mov rdx, 2
+      syscall
+      pop rax
+      pop rcx
+  tutup_loop
+
+  ; --- TEST 4: SELAMA (While-like) ---
+  ; Note: SELAMA structure is same as LOOP in current parser,
+  ; user defines condition inside.
+
+  mov rcx, 0
+  selama
+      inc rcx
+      cmp rcx, 2
+      jika_lebih
+         henti
+      tutup_jika
+
+      ; Print D (0x44)
+      push rcx
+      mov rax, 0x0A44
+      push rax
+      mov rax, 1
+      mov rdi, 1
+      mov rsi, rsp
+      mov rdx, 2
+      syscall
+      pop rax
+      pop rcx
+  tutup_selama
+
+  ; EXIT
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi

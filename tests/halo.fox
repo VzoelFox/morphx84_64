@@ -3,7 +3,7 @@ fungsi main
   mov rax, 10
   mov rbx, 10
   cmp rax, rbx
-  jika1
+  jika_sama
     mov rax, 0x0A41 ; A
     push rax
     mov rax, 1
@@ -13,7 +13,7 @@ fungsi main
     syscall
     pop rax
     lompat selesai
-  tutup_jika1
+  tutup_jika
 
   mov rax, 0x0A42 ; B
   push rax
