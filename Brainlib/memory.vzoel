@@ -1,1 +1,24 @@
+; Morph Memory & Arithmetic Instructions
 
+; Data Movement
+mov.r64.r64         rex=W opcode=0x89 modrm=reg,reg
+mov.r64.imm64       rex=W opcode=0xB8 reg_in_op imm64
+mov.r64.imm32       rex=W opcode=0xC7 modrm=0 imm32
+mov.r64.mem         rex=W opcode=0x8B modrm=reg,mem
+mov.mem.r64         rex=W opcode=0x89 modrm=mem,reg
+
+; Stack
+push.r64            opcode=0x50 reg_in_op
+pop.r64             opcode=0x58 reg_in_op
+
+; Arithmetic
+add.r64.r64         rex=W opcode=0x01 modrm=reg,reg
+add.r64.imm32       rex=W opcode=0x81 modrm=0 imm32
+sub.r64.r64         rex=W opcode=0x29 modrm=reg,reg
+sub.r64.imm32       rex=W opcode=0x81 modrm=5 imm32
+imul.r64.r64        rex=W opcode=0x0F,0xAF modrm=reg,reg
+
+; Logic
+and.r64.r64         rex=W opcode=0x21 modrm=reg,reg
+or.r64.r64          rex=W opcode=0x09 modrm=reg,reg
+xor.r64.r64         rex=W opcode=0x31 modrm=reg,reg
