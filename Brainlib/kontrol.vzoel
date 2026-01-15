@@ -1,0 +1,40 @@
+; Morph Kontrol Alur (Control Flow)
+
+; Comparison
+cmp.r64.r64         rex=W opcode=0x39 modrm=reg,reg ; [AI_HINT: Bandingkan dua register]
+cmp.r64.imm32       rex=W opcode=0x81 modrm=7 imm32 ; [AI_HINT: Bandingkan register dengan angka 32-bit]
+cmp.r64.imm8        rex=W opcode=0x83 modrm=7 imm8  ; [AI_HINT: Bandingkan register dengan angka 8-bit]
+
+; Test (Logical Compare)
+test.r64.r64        rex=W opcode=0x85 modrm=reg,reg ; [AI_HINT: Uji bit register (AND logic)]
+
+; Unconditional Jump
+jmp.rel32           opcode=0xE9 rel32 ; [AI_HINT: Lompat tanpa syarat (lompat)]
+
+; Conditional Jumps - Equality
+je.rel32            opcode=0x0F,0x84 rel32  ; [AI_HINT: Lompat jika Sama / Nol]
+jz.rel32            opcode=0x0F,0x84 rel32  ; [AI_HINT: Alias je]
+jne.rel32           opcode=0x0F,0x85 rel32  ; [AI_HINT: Lompat jika Tidak Sama / Tidak Nol]
+jnz.rel32           opcode=0x0F,0x85 rel32  ; [AI_HINT: Alias jne]
+
+; Conditional Jumps - Signed Arithmetic
+jl.rel32            opcode=0x0F,0x8C rel32  ; [AI_HINT: Lompat jika Lebih Kecil (Signed)]
+jle.rel32           opcode=0x0F,0x8E rel32  ; [AI_HINT: Lompat jika Lebih Kecil atau Sama (Signed)]
+jg.rel32            opcode=0x0F,0x8F rel32  ; [AI_HINT: Lompat jika Lebih Besar (Signed)]
+jge.rel32           opcode=0x0F,0x8D rel32  ; [AI_HINT: Lompat jika Lebih Besar atau Sama (Signed)]
+
+; Conditional Jumps - Unsigned Arithmetic
+jb.rel32            opcode=0x0F,0x82 rel32  ; [AI_HINT: Lompat jika Di Bawah (Unsigned)]
+jae.rel32           opcode=0x0F,0x83 rel32  ; [AI_HINT: Lompat jika Di Atas atau Sama (Unsigned)]
+ja.rel32            opcode=0x0F,0x87 rel32  ; [AI_HINT: Lompat jika Di Atas (Unsigned)]
+jbe.rel32           opcode=0x0F,0x86 rel32  ; [AI_HINT: Lompat jika Di Bawah atau Sama (Unsigned)]
+
+; Conditional Jumps - Flags
+js.rel32            opcode=0x0F,0x88 rel32  ; [AI_HINT: Lompat jika Negatif (Sign flag)]
+jns.rel32           opcode=0x0F,0x89 rel32  ; [AI_HINT: Lompat jika Positif (Not Sign)]
+jo.rel32            opcode=0x0F,0x80 rel32  ; [AI_HINT: Lompat jika Overflow]
+jno.rel32           opcode=0x0F,0x81 rel32  ; [AI_HINT: Lompat jika Tidak Overflow]
+
+; Subroutine
+call.rel32          opcode=0xE8 rel32 ; [AI_HINT: Panggil fungsi]
+ret                 opcode=0xC3       ; [AI_HINT: Kembali dari fungsi (kembali)]

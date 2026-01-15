@@ -1,0 +1,31 @@
+fungsi main
+  debug ; Should print DEBUG
+  mov rax, 10
+  mov rbx, 10
+  cmp rax, rbx
+  jika_sama
+    mov rax, 0x0A41 ; A
+    push rax
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 2
+    syscall
+    pop rax
+    lompat selesai
+  tutup_jika
+
+  mov rax, 0x0A42 ; B
+  push rax
+  mov rax, 1
+  mov rdi, 1
+  mov rsi, rsp
+  mov rdx, 2
+  syscall
+  pop rax
+
+  selesai:
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi

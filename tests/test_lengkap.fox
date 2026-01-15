@@ -1,0 +1,44 @@
+fungsi main
+  ; --- 1. Aritmatika ---
+  mov rax, 100
+  add rax, 50        ; imm8 (optimized)
+  add rax, 1000      ; imm32
+  sub rax, 10
+  inc rax
+  dec rax
+
+  mov rbx, 5
+  imul rax, rbx
+
+  ; --- 2. Logika ---
+  mov rax, 0xFF
+  and rax, 0xF0
+  or rax, 0x01
+  xor rax, rax       ; Zeroing
+  not rax
+
+  ; --- 3. Data ---
+  mov rax, 0x12345678
+  push rax
+  push 0x10          ; imm8 push
+  pop rbx
+  pop rax
+
+  ; --- 4. Kontrol ---
+  mov rax, 10
+  cmp rax, 10
+  je .sama
+
+  ; Should skip
+  mov rax, 0
+  jmp .akhir
+
+.sama:
+  debug
+
+.akhir:
+  ; Exit
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi

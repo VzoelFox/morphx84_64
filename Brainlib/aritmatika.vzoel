@@ -1,0 +1,26 @@
+; Morph Aritmatika (Arithmetic)
+
+; Addition
+add.r64.r64         rex=W opcode=0x01 modrm=reg,reg ; [AI_HINT: Tambah register dengan register]
+add.r64.imm32       rex=W opcode=0x81 modrm=0 imm32 ; [AI_HINT: Tambah register dengan angka 32-bit]
+add.r64.imm8        rex=W opcode=0x83 modrm=0 imm8  ; [AI_HINT: Tambah register dengan angka 8-bit]
+
+; Subtraction
+sub.r64.r64         rex=W opcode=0x29 modrm=reg,reg ; [AI_HINT: Kurang register dengan register]
+sub.r64.imm32       rex=W opcode=0x81 modrm=5 imm32 ; [AI_HINT: Kurang register dengan angka 32-bit]
+sub.r64.imm8        rex=W opcode=0x83 modrm=5 imm8  ; [AI_HINT: Kurang register dengan angka 8-bit]
+
+; Multiplication (Signed)
+imul.r64.r64        rex=W opcode=0x0F,0xAF modrm=reg,reg ; [AI_HINT: Kali (signed) register dengan register]
+
+; Division (Signed) - idiv r64 (RDX:RAX / r64)
+idiv.r64            rex=W opcode=0xF7 modrm=7 ; [AI_HINT: Bagi (signed) RDX:RAX dengan register]
+
+; Increment
+inc.r64             rex=W opcode=0xFF modrm=0 ; [AI_HINT: Tambah 1 ke register]
+
+; Decrement
+dec.r64             rex=W opcode=0xFF modrm=1 ; [AI_HINT: Kurang 1 dari register]
+
+; Negate (Two's Complement)
+neg.r64             rex=W opcode=0xF7 modrm=3 ; [AI_HINT: Negasikan nilai register ( -x )]

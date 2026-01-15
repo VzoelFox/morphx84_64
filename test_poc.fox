@@ -1,0 +1,23 @@
+fungsi main
+  ; Initial Debug
+  debug
+
+  ; Test IF (True condition)
+  mov rax, 10
+  sub rax, 10
+  jika1
+    debug
+  tutup_jika1
+
+  ; Test IF (False condition)
+  mov rax, 5
+  sub rax, 1
+  jika2
+    debug
+  tutup_jika2
+
+  ; Exit
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi

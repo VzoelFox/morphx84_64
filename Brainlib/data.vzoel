@@ -1,0 +1,25 @@
+; Morph Data Movement (Perpindahan Data)
+
+; Move Register-Register
+mov.r64.r64         rex=W opcode=0x89 modrm=reg,reg ; [AI_HINT: Salin nilai register ke register]
+
+; Move Immediate
+mov.r64.imm64       rex=W opcode=0xB8 reg_in_op imm64 ; [AI_HINT: Salin angka 64-bit ke register]
+mov.r64.imm32       rex=W opcode=0xC7 modrm=0 imm32   ; [AI_HINT: Salin angka 32-bit ke register]
+
+; Move Memory
+mov.r64.mem         rex=W opcode=0x8B modrm=reg,mem   ; [AI_HINT: Baca dari memori ke register]
+mov.mem.r64         rex=W opcode=0x89 modrm=mem,reg   ; [AI_HINT: Tulis register ke memori]
+mov.mem.imm32       rex=W opcode=0xC7 modrm=0 imm32   ; [AI_HINT: Tulis angka 32-bit ke memori]
+
+; Stack Operations (Tumpukan)
+push.r64            opcode=0x50 reg_in_op ; [AI_HINT: Dorong register ke stack]
+push.imm32          opcode=0x68 imm32     ; [AI_HINT: Dorong angka 32-bit ke stack]
+push.imm8           opcode=0x6A imm8      ; [AI_HINT: Dorong angka 8-bit ke stack]
+pop.r64             opcode=0x58 reg_in_op ; [AI_HINT: Ambil dari stack ke register]
+
+; Load Effective Address
+lea.r64.mem         rex=W opcode=0x8D modrm=reg,mem ; [AI_HINT: Hitung alamat efektif]
+
+; Exchange
+xchg.r64.r64        rex=W opcode=0x87 modrm=reg,reg ; [AI_HINT: Tukar isi dua register]
