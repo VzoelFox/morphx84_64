@@ -1,0 +1,17 @@
+call.rel32 print_hello
+mov.r64.imm64 rax, 60
+mov.r64.imm64 rdi, 0
+syscall
+
+fungsi print_hello()
+  mov.r64.imm64 rbx, 8
+  sub.r64.r64 rsp, rbx
+  mov.r64.imm64 rcx, 11473676690760
+  mov.mem.r64 [rsp], rcx
+  mov.r64.imm64 rax, 1
+  mov.r64.imm64 rdi, 1
+  mov.r64.r64 rsi, rsp
+  mov.r64.imm64 rdx, 6
+  syscall
+  add.r64.imm32 rsp, 8
+tutup_fungsi
