@@ -8,16 +8,32 @@ cmp.r64.imm8        rex=W opcode=0x83 modrm=7 imm8
 ; Test (Logical Compare)
 test.r64.r64        rex=W opcode=0x85 modrm=reg,reg
 
-; Jumps
+; Unconditional Jump
 jmp.rel32           opcode=0xE9 rel32
-je.rel32            opcode=0x0F,0x84 rel32
-jne.rel32           opcode=0x0F,0x85 rel32
 
-; Signed Jumps
-jl.rel32            opcode=0x0F,0x8C rel32  ; Jump Less
-jle.rel32           opcode=0x0F,0x8E rel32  ; Jump Less Equal
-jg.rel32            opcode=0x0F,0x8F rel32  ; Jump Greater
-jge.rel32           opcode=0x0F,0x8D rel32  ; Jump Greater Equal
+; Conditional Jumps - Equality
+je.rel32            opcode=0x0F,0x84 rel32  ; Equal / Zero
+jz.rel32            opcode=0x0F,0x84 rel32  ; Equal / Zero (Alias)
+jne.rel32           opcode=0x0F,0x85 rel32  ; Not Equal / Not Zero
+jnz.rel32           opcode=0x0F,0x85 rel32  ; Not Equal / Not Zero (Alias)
+
+; Conditional Jumps - Signed Arithmetic
+jl.rel32            opcode=0x0F,0x8C rel32  ; Less (SF!=OF)
+jle.rel32           opcode=0x0F,0x8E rel32  ; Less or Equal (ZF=1 or SF!=OF)
+jg.rel32            opcode=0x0F,0x8F rel32  ; Greater (ZF=0 and SF=OF)
+jge.rel32           opcode=0x0F,0x8D rel32  ; Greater or Equal (SF=OF)
+
+; Conditional Jumps - Unsigned Arithmetic
+jb.rel32            opcode=0x0F,0x82 rel32  ; Below (CF=1)
+jae.rel32           opcode=0x0F,0x83 rel32  ; Above or Equal (CF=0)
+ja.rel32            opcode=0x0F,0x87 rel32  ; Above (CF=0 and ZF=0)
+jbe.rel32           opcode=0x0F,0x86 rel32  ; Below or Equal (CF=1 or ZF=1)
+
+; Conditional Jumps - Flags
+js.rel32            opcode=0x0F,0x88 rel32  ; Sign (Negative)
+jns.rel32           opcode=0x0F,0x89 rel32  ; Not Sign (Non-negative)
+jo.rel32            opcode=0x0F,0x80 rel32  ; Overflow
+jno.rel32           opcode=0x0F,0x81 rel32  ; No Overflow
 
 ; Subroutine
 call.rel32          opcode=0xE8 rel32

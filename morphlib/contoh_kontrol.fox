@@ -1,0 +1,52 @@
+fungsi main
+  ; --- Test Unsigned Control Flow ---
+  ; 100 > 50 (Unsigned)
+  mov rax, 100
+  cmp rax, 50
+  ja .lebih_besar_unsigned
+  debug ; Should not reach here
+  jmp .lanjut1
+
+.lebih_besar_unsigned:
+  debug ; EXPECTED: DEBUG
+
+.lanjut1:
+  ; 10 < 20 (Unsigned)
+  mov rax, 10
+  cmp rax, 20
+  jb .lebih_kecil_unsigned
+  debug ; Should not reach here
+  jmp .lanjut2
+
+.lebih_kecil_unsigned:
+  debug ; EXPECTED: DEBUG
+
+.lanjut2:
+  ; --- Test Flags ---
+  ; Overflow Test
+  ; 0x7FFFFFFFFFFFFFFF + 1 = 0x8000000000000000 (Overflow in signed)
+  mov rax, 0x7FFFFFFFFFFFFFFF
+  add rax, 1
+  jo .ada_overflow
+  debug ; Should not reach here
+  jmp .lanjut3
+
+.ada_overflow:
+  debug ; EXPECTED: DEBUG
+
+.lanjut3:
+  ; Sign Test
+  mov rax, 0
+  dec rax ; -1 (0xFFFFFFFFFFFFFFFF) -> Sign Flag Set
+  js .negatif
+  debug ; Should not reach here
+  jmp .selesai
+
+.negatif:
+  debug ; EXPECTED: DEBUG
+
+.selesai:
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi
