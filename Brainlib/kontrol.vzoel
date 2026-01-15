@@ -1,0 +1,24 @@
+; Morph Kontrol Alur (Control Flow)
+
+; Comparison
+cmp.r64.r64         rex=W opcode=0x39 modrm=reg,reg
+cmp.r64.imm32       rex=W opcode=0x81 modrm=7 imm32
+cmp.r64.imm8        rex=W opcode=0x83 modrm=7 imm8
+
+; Test (Logical Compare)
+test.r64.r64        rex=W opcode=0x85 modrm=reg,reg
+
+; Jumps
+jmp.rel32           opcode=0xE9 rel32
+je.rel32            opcode=0x0F,0x84 rel32
+jne.rel32           opcode=0x0F,0x85 rel32
+
+; Signed Jumps
+jl.rel32            opcode=0x0F,0x8C rel32  ; Jump Less
+jle.rel32           opcode=0x0F,0x8E rel32  ; Jump Less Equal
+jg.rel32            opcode=0x0F,0x8F rel32  ; Jump Greater
+jge.rel32           opcode=0x0F,0x8D rel32  ; Jump Greater Equal
+
+; Subroutine
+call.rel32          opcode=0xE8 rel32
+ret                 opcode=0xC3

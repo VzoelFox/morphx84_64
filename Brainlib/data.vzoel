@@ -1,0 +1,25 @@
+; Morph Data Movement
+
+; Move Register-Register
+mov.r64.r64         rex=W opcode=0x89 modrm=reg,reg
+
+; Move Immediate
+mov.r64.imm64       rex=W opcode=0xB8 reg_in_op imm64
+mov.r64.imm32       rex=W opcode=0xC7 modrm=0 imm32
+
+; Move Memory
+mov.r64.mem         rex=W opcode=0x8B modrm=reg,mem
+mov.mem.r64         rex=W opcode=0x89 modrm=mem,reg
+mov.mem.imm32       rex=W opcode=0xC7 modrm=0 imm32
+
+; Stack Operations
+push.r64            opcode=0x50 reg_in_op
+push.imm32          opcode=0x68 imm32
+push.imm8           opcode=0x6A imm8
+pop.r64             opcode=0x58 reg_in_op
+
+; Load Effective Address
+lea.r64.mem         rex=W opcode=0x8D modrm=reg,mem
+
+; Exchange
+xchg.r64.r64        rex=W opcode=0x87 modrm=reg,reg

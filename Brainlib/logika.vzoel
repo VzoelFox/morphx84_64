@@ -1,0 +1,31 @@
+; Morph Logika (Logic & Axioms)
+
+; AND
+and.r64.r64         rex=W opcode=0x21 modrm=reg,reg
+and.r64.imm32       rex=W opcode=0x81 modrm=4 imm32
+and.r64.imm8        rex=W opcode=0x83 modrm=4 imm8
+
+; OR
+or.r64.r64          rex=W opcode=0x09 modrm=reg,reg
+or.r64.imm32        rex=W opcode=0x81 modrm=1 imm32
+or.r64.imm8         rex=W opcode=0x83 modrm=1 imm8
+
+; XOR
+xor.r64.r64         rex=W opcode=0x31 modrm=reg,reg
+xor.r64.imm32       rex=W opcode=0x81 modrm=6 imm32
+xor.r64.imm8        rex=W opcode=0x83 modrm=6 imm8
+
+; NOT (One's Complement)
+not.r64             rex=W opcode=0xF7 modrm=2
+
+; Shift Left (Arithmetic/Logical are same for Left)
+shl.r64.imm8        rex=W opcode=0xC1 modrm=4 imm8
+shl.r64.cl          rex=W opcode=0xD3 modrm=4
+
+; Shift Right (Logical)
+shr.r64.imm8        rex=W opcode=0xC1 modrm=5 imm8
+shr.r64.cl          rex=W opcode=0xD3 modrm=5
+
+; Shift Right (Arithmetic - preserves sign)
+sar.r64.imm8        rex=W opcode=0xC1 modrm=7 imm8
+sar.r64.cl          rex=W opcode=0xD3 modrm=7
