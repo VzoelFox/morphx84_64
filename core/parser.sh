@@ -3,7 +3,7 @@
 # Morph Parser - The Bootstrap Compiler
 # Reads spec/x84_64.vzoel and compiles .fox to .morph
 
-SPEC_FILE="spec/x84_64.vzoel"
+BRAINLIB_DIR="Brainlib"
 OUTPUT_FILE="output.morph"
 CURRENT_OFFSET=0
 PASS=1
@@ -38,19 +38,24 @@ log() {
 }
 
 load_isa() {
-    if [[ ! -f "$SPEC_FILE" ]]; then
-        log "Error: Spec file $SPEC_FILE not found."
+    if [[ ! -d "$BRAINLIB_DIR" ]]; then
+        log "Error: Brainlib directory $BRAINLIB_DIR not found."
         exit 1
     fi
 
-    while IFS= read -r line; do
-        line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
-        if [[ -z "$line" || "$line" == ";"* ]]; then continue; fi
+    for spec_file in "$BRAINLIB_DIR"/*.vzoel; do
+        if [[ ! -f "$spec_file" ]]; then continue; fi
+        log "Loading ISA from $spec_file..."
 
-        mnemonic=$(echo "$line" | awk '{print $1}')
-        props=$(echo "$line" | cut -d' ' -f2-)
-        ISA_OPCODES["$mnemonic"]="$props"
-    done < "$SPEC_FILE"
+        while IFS= read -r line; do
+            line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
+            if [[ -z "$line" || "$line" == ";"* ]]; then continue; fi
+
+            mnemonic=$(echo "$line" | awk '{print $1}')
+            props=$(echo "$line" | cut -d' ' -f2-)
+            ISA_OPCODES["$mnemonic"]="$props"
+        done < "$spec_file"
+    done
 }
 
 # Output handling
@@ -101,6 +106,23 @@ parse_operand() {
     # Clean up comma
     op=${op%,}
     echo "$op"
+}
+
+is_reg() {
+    local op="$1"
+    if [[ -n "${REGISTERS[$op]}" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+is_imm() {
+    local op="$1"
+    if [[ "$op" =~ ^-?[0-9]+$ ]] || [[ "$op" =~ ^0x[0-9a-fA-F]+$ ]]; then
+        return 0
+    fi
+    return 1
 }
 
 is_mem_operand() {
@@ -156,6 +178,53 @@ compile_line() {
         return
     fi
 
+    # Explicit Control Flow (Indonesian)
+    if [[ "$mnemonic" =~ ^jika[0-9]+$ ]]; then
+        local id=${mnemonic#jika}
+        # Emits jump if NOT equal (assumes implicit cmp before)
+        compile_line "jne .L_end_jika${id}"
+        return
+    fi
+
+    if [[ "$mnemonic" =~ ^tutup_jika[0-9]+$ ]]; then
+        local id=${mnemonic#tutup_jika}
+        compile_line ".L_end_jika${id}:"
+        return
+    fi
+
+    # Debug Instruction
+    if [[ "$mnemonic" == "debug" ]]; then
+        # Prints "DEBUG\n" using syscall
+        # Save clobbered registers (rax, rdi, rsi, rdx, rcx) - r11 omitted due to lack of REX support yet
+        compile_line "push rax"
+        compile_line "push rdi"
+        compile_line "push rsi"
+        compile_line "push rdx"
+        compile_line "push rcx"
+
+        # Prepare string on stack
+        compile_line "mov rax, 0x0A4755424544"
+        compile_line "push rax"
+
+        # Syscall
+        compile_line "mov rax, 1"
+        compile_line "mov rdi, 1"
+        compile_line "mov rsi, rsp"
+        compile_line "mov rdx, 6"
+        compile_line "syscall"
+
+        # Cleanup string
+        compile_line "pop rax"
+
+        # Restore registers
+        compile_line "pop rcx"
+        compile_line "pop rdx"
+        compile_line "pop rsi"
+        compile_line "pop rdi"
+        compile_line "pop rax"
+        return
+    fi
+
     if [[ "$mnemonic" == *":" ]]; then
         # Label definition: name:
         local name=${mnemonic%:}
@@ -165,10 +234,54 @@ compile_line() {
         return
     fi
 
-    local props="${ISA_OPCODES[$mnemonic]}"
+    # Smart Opcode Resolution
+    local suffix=""
+    local arg1=$(echo "$args" | awk '{print $1}')
+    local arg2=$(echo "$args" | awk '{print $2}')
+    arg1=${arg1%,}
+    arg2=${arg2%,}
+
+    if [[ -n "$arg1" ]]; then
+        if is_reg "$arg1"; then
+            if [[ -n "$arg2" ]]; then
+                if is_reg "$arg2"; then
+                    suffix=".r64.r64"
+                elif is_mem_operand "$arg2"; then
+                    suffix=".r64.mem"
+                elif is_imm "$arg2"; then
+                     if [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then
+                         suffix=".r64.imm64"
+                     elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then
+                         suffix=".r64.imm32"
+                     fi
+                fi
+            else
+                # Single register operand (e.g. push rax)
+                suffix=".r64"
+            fi
+        # Handle call/jmp label (Arg1 is not Reg, Mem, or Imm -> Label?)
+        elif ! is_reg "$arg1" && ! is_mem_operand "$arg1" && ! is_imm "$arg1"; then
+             # Likely a label
+             if [[ -n "${ISA_OPCODES[${mnemonic}.rel32]}" ]]; then
+                 suffix=".rel32"
+             fi
+        elif is_mem_operand "$arg1"; then
+            if [[ -n "$arg2" ]] && is_reg "$arg2"; then
+                suffix=".mem.r64"
+            fi
+        fi
+    fi
+
+    local lookup_mnemonic="${mnemonic}${suffix}"
+    local props="${ISA_OPCODES[$lookup_mnemonic]}"
+
+    # Fallback to exact match (e.g. syscall, ret, or explicit mnemonic)
+    if [[ -z "$props" ]]; then
+        props="${ISA_OPCODES[$mnemonic]}"
+    fi
 
     if [[ -z "$props" ]]; then
-        log "Unknown instruction: $mnemonic"
+        log "Unknown instruction: $mnemonic (tried $lookup_mnemonic)"
         return
     fi
 
@@ -331,13 +444,14 @@ compile_line() {
                 exit 1
             fi
 
-        elif [[ "$modrm_mode" == "0" ]]; then
-             # Case for add.r64.imm32 modrm=0
-             # ModRM extension. /0 means Reg field is 0.
+        elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
+             # Case for add.r64.imm32 modrm=0, sub.r64.imm32 modrm=5
+             # ModRM extension. /digit means Reg field is that digit.
              # Dst is RM.
              # Mod=11 (Register)
+             local r_ext=$modrm_mode
              local r_dst=$(get_reg_id "$arg1")
-             local modrm=$((0xC0 + (0 << 3) + r_dst))
+             local modrm=$((0xC0 + (r_ext << 3) + r_dst))
              emit_byte $modrm
         fi
     fi
