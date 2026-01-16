@@ -1,0 +1,153 @@
+; Morph Snapshot Module
+; [AI_HINT: Mengelola serialisasi Heap ke Disk]
+
+; Constants
+; O_WRONLY(1) | O_CREAT(64) | O_TRUNC(512) = 577 -> 0x241
+; O_RDONLY = 0
+; Magic: "MORPHSNP" -> 0x504E534850524F4D (Little Endian)
+
+fungsi snapshot_save
+    ; Input: rdi (filename ptr)
+    ; Output: rax (0 success, -1 fail)
+
+    push rdi ; Save filename
+
+    ; 1. Open File
+    mov rsi, 577 ; Flags
+    mov rdx, 438 ; Mode 0666 (rw-rw-rw-)
+    call sys_open
+
+    cmp rax, 0
+    jika_negatif
+        pop rdi
+        ret ; Error
+    tutup_jika
+
+    mov r8, rax ; r8 = fd
+
+    ; 2. Prepare Header on Stack
+    ; Magic (MORPHSNP)
+    mov rax, 0x504E534850524F4D
+    push rax
+
+    ; Calculate Heap Size
+    push r8 ; Save fd
+    mov rdi, 0
+    call sys_brk
+    pop r8
+
+    mov rbx, rax ; rbx = Current Break
+    sub rax, r15 ; rax = Size (Break - Root)
+    mov rcx, rax ; rcx = Size
+
+    push rcx ; Push Size to stack
+
+    ; Stack Layout now: [Size (8)], [Magic (8)], ...
+    ; We want to write 16 bytes from RSP.
+
+    ; 3. Write Header
+    mov rdi, r8 ; fd
+    mov rsi, rsp ; buf (stack)
+    mov rdx, 16  ; len (Magic + Size)
+    call sys_write
+
+    ; Cleanup Stack (Size and Magic)
+    pop rax
+    pop rax
+
+    ; 4. Write Heap Data
+    ; r15 = Heap Root
+    ; rcx = Heap Size (Computed before)
+    ; We need size again.
+
+    push r8
+    mov rdi, 0
+    call sys_brk
+    pop r8
+
+    sub rax, r15 ; Size
+
+    mov rdi, r8 ; fd
+    mov rsi, r15 ; buf (Heap Root)
+    mov rdx, rax ; len
+    call sys_write
+
+    ; 5. Close File
+    mov rdi, r8
+    call sys_close
+
+    pop rdi ; Restore filename
+    mov rax, 0
+    ret
+tutup_fungsi
+
+fungsi snapshot_restore
+    ; Input: rdi (filename ptr)
+    ; Output: rax (0 success, -1 fail)
+
+    push rdi
+
+    ; 1. Open File
+    mov rsi, 0 ; O_RDONLY
+    mov rdx, 0
+    call sys_open
+
+    cmp rax, 0
+    jika_negatif
+        pop rdi
+        ret
+    tutup_jika
+
+    mov r8, rax ; r8 = fd
+
+    ; 2. Read Header
+    ; Reserve stack space
+    push rax ; placeholder
+    push rax ; placeholder
+
+    mov rdi, r8
+    mov rsi, rsp
+    mov rdx, 16
+    call sys_read
+
+    ; Validate Magic
+    pop rcx ; Size
+    pop rax ; Magic
+
+    mov rdx, 0x504E534850524F4D
+    cmp rax, rdx
+    jika_beda
+        ; Invalid Magic
+        mov rdi, r8
+        call sys_close
+        pop rdi
+        mov rax, -1
+        ret
+    tutup_jika
+
+    ; rcx contains Size
+
+    ; 3. Expand Heap
+    ; New Break = r15 + Size
+    mov rdi, r15
+    add rdi, rcx
+    push rcx ; Save Size
+    push r8  ; Save FD
+    call sys_brk
+    pop r8
+    pop rcx
+
+    ; 4. Read Heap Data
+    mov rdi, r8
+    mov rsi, r15 ; Dest = Heap Root
+    mov rdx, rcx ; Len = Size
+    call sys_read
+
+    ; 5. Close
+    mov rdi, r8
+    call sys_close
+
+    pop rdi
+    mov rax, 0
+    ret
+tutup_fungsi

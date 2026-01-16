@@ -4,7 +4,7 @@
 ; Header Structure (32 bytes)
 ; [0-7]   Size (Payload size)
 ; [8-15]  Status (1=Used, 0=Free)
-; [16-23] Next Ptr (reserved)
+; [16-23] Magic Number (Verification) - Value: 28062004
 ; [24-31] Padding
 
 fungsi heap_init
@@ -12,6 +12,28 @@ fungsi heap_init
     mov rdi, 0
     call sys_brk
     mov r15, rax
+    ret
+tutup_fungsi
+
+fungsi mem_check_magic
+    ; Input: rdi (Header Ptr)
+    ; Output: None (Crashes if invalid)
+
+    ; Check Magic at [rdi+16]
+    mov r10, rdi
+    add r10, 16
+    mov rax, [r10]
+
+    ; Magic: 28062004
+    mov rdx, 28062004
+    cmp rax, rdx
+    jika_beda
+        ; HEAP CORRUPTION DETECTED
+        ; Write error to stderr (2)
+        ; We can't use printmorph easily without stack mess, just hard fail with syscall
+        mov rdi, 666 ; Error Code 666
+        call sys_exit
+    tutup_jika
     ret
 tutup_fungsi
 
@@ -43,6 +65,12 @@ fungsi mem_alloc
         jika_diatas
             henti ; Safety break
         tutup_jika
+
+        ; Verify Magic Number before reading size
+        push rdi
+        mov rdi, r8
+        call mem_check_magic
+        pop rdi
 
         ; Read Header
         ; [r8] is Size
@@ -99,8 +127,8 @@ fungsi mem_alloc
     add r10, 8
     mov [r10], r11
 
-    ; [rbx+16] = Next (0)
-    mov r11, 0
+    ; [rbx+16] = Magic (28062004)
+    mov r11, 28062004
     mov r10, rbx
     add r10, 16
     mov [r10], r11
@@ -116,6 +144,11 @@ fungsi mem_free
 
     ; Calculate Header Ptr (rdi - 32)
     sub rdi, 32
+
+    ; Verify Magic
+    push rdi
+    call mem_check_magic
+    pop rdi
 
     ; Mark Status = 0 (at rdi+8)
     mov r11, 0
