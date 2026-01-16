@@ -61,3 +61,7 @@ btc.r64.r64         rex=W opcode=0x0F,0xBB modrm=mem,reg ; [AI_HINT: Uji dan Kom
 
 ; Atomic / Unification
 cmpxchg.r64.r64     rex=W opcode=0x0F,0xB1 modrm=mem,reg ; [AI_HINT: Compare and Exchange (Atomic), jika RAX == dst, dst = src]
+
+; Hashing & Translation
+crc32.r64.r64       rex=W opcode=0xF2,0x0F,0x38,0xF1 modrm=reg,reg ; [AI_HINT: Akumulasi CRC32 value (Hashing Hardware)]
+xlat                opcode=0xD7 ; [AI_HINT: Table Look-up Translation (AL = [RBX + AL])]
