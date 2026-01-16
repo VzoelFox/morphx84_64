@@ -8,10 +8,50 @@
 
 ; --- System Calls ---
 
+fungsi sys_read
+    ; Input: rdi (fd), rsi (buf), rdx (len)
+    ; Output: rax (bytes read or error)
+    mov rax, 0
+    syscall
+    ret
+tutup_fungsi
+
 fungsi sys_write
     ; Input: rdi (fd), rsi (buf), rdx (len)
     ; Output: rax (bytes written or error)
     mov rax, 1
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_open
+    ; Input: rdi (filename), rsi (flags), rdx (mode)
+    ; Output: rax (fd or error)
+    mov rax, 2
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_close
+    ; Input: rdi (fd)
+    ; Output: rax (0 or error)
+    mov rax, 3
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_lseek
+    ; Input: rdi (fd), rsi (offset), rdx (whence)
+    ; Output: rax (new offset)
+    mov rax, 8
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_mmap
+    ; Input: rdi (addr), rsi (len), rdx (prot), r10 (flags), r8 (fd), r9 (offset)
+    ; Output: rax (addr or error)
+    mov rax, 9
     syscall
     ret
 tutup_fungsi
@@ -24,17 +64,33 @@ fungsi sys_brk
     ret
 tutup_fungsi
 
-fungsi sys_exit
-    ; Input: rdi (error_code)
-    mov rax, 60
+fungsi sys_rt_sigaction
+    ; Input: rdi (signum), rsi (act), rdx (oldact), r10 (sigsetsize)
+    ; Output: rax (0 or error)
+    mov rax, 13
     syscall
     ret
 tutup_fungsi
 
-fungsi sys_mmap
-    ; Input: rdi (addr), rsi (len), rdx (prot), r10 (flags), r8 (fd), r9 (offset)
-    ; Output: rax (addr or error)
-    mov rax, 9
+fungsi sys_rt_sigreturn
+    ; Input: None (Uses stack context)
+    ; Does not return
+    mov rax, 15
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_setitimer
+    ; Input: rdi (which), rsi (new_value), rdx (old_value)
+    ; Output: rax (0 or error)
+    mov rax, 38
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_exit
+    ; Input: rdi (error_code)
+    mov rax, 60
     syscall
     ret
 tutup_fungsi
