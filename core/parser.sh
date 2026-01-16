@@ -370,7 +370,8 @@ compile_line() {
             fi
         elif is_mem_operand "$arg1"; then
              if [[ -n "$arg2" ]] && is_reg "$arg2"; then suffix=".mem.r64";
-             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32"; fi
+             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32";
+             else suffix=".mem64"; fi
         elif is_imm "$arg1"; then
              if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then suffix=".imm8";
              elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then suffix=".imm32";
@@ -436,9 +437,18 @@ compile_line() {
             modrm=$((0xC0 + (r_src << 3) + r_dst))
             emit_byte $modrm
         elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
-            local ext=$modrm_mode; local r_rm=$(get_reg_id "$arg1")
-            modrm=$((0xC0 + (ext << 3) + r_rm))
-            emit_byte $modrm
+            local ext=$modrm_mode
+            if is_mem_operand "$arg1"; then
+                local r_rm=$(get_mem_reg_id "$arg1")
+                # Handle special cases for RSP/RBP if needed, but for now simple [reg]
+                if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (ext<<3) + 4)); emit_byte 0x24; # [rsp]
+                elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (ext<<3) + 5)); emit_byte 0x00; # [rbp]
+                else emit_byte $((0x00 + (ext << 3) + r_rm)); fi
+            else
+                local r_rm=$(get_reg_id "$arg1")
+                modrm=$((0xC0 + (ext << 3) + r_rm))
+                emit_byte $modrm
+            fi
         elif [[ "$modrm_mode" == "reg,mem" ]]; then
              local r_reg=$(get_reg_id "$arg1"); local r_rm=$(get_mem_reg_id "$arg2")
              if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
