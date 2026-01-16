@@ -1,0 +1,50 @@
+fungsi main
+    ; Test Memory Allocator
+
+    ; 1. Initialize
+    call heap_init
+
+    ; 2. Alloc 32 bytes
+    mov rdi, 32
+    call mem_alloc
+
+    ; Save ptr in r12 (callee-saved usually, but here just safe reg)
+    mov r12, rax
+
+    ; 3. Write "AllocOK\n"
+    ; 0x0A4B4F636F6C6C41 ("AllocOK\n")
+    mov rbx, 0x0A4B4F636F6C6C41
+    mov [r12], rbx
+
+    ; 4. Print
+    mov rdi, 1      ; STDOUT
+    mov rsi, r12    ; Buffer
+    mov rdx, 8      ; Len
+    call sys_write
+
+    ; 5. Free
+    mov rdi, r12
+    call mem_free
+
+    ; 6. Verify Reuse (Optional but good)
+    ; Alloc again, should theoretically get same addr if simple implementation
+    mov rdi, 32
+    call mem_alloc
+
+    ; Compare with old ptr (r12)
+    cmp rax, r12
+    jika_sama
+       ; Reuse works! Print "ReuseOK\n" ?
+       ; 0x0A4B4F6573756552 ("ReuseOK\n")
+       mov rbx, 0x0A4B4F6573756552
+       mov [rax], rbx
+
+       mov rdi, 1
+       mov rsi, rax
+       mov rdx, 8
+       call sys_write
+    tutup_jika
+
+    mov rdi, 0
+    call sys_exit
+tutup_fungsi
