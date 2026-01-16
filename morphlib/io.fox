@@ -120,6 +120,57 @@ fungsi print_decimal
     push rdx
     push rcx
 
+    ; Check for INT64_MIN (0x8000000000000000)
+    ; Cannot neg this value as it overflows
+    mov rax, 0x8000000000000000
+    cmp rdi, rax
+    jika_sama
+        ; Print specific string manually as we don't have .data in library easily yet without label exposure
+        ; Manual print: "-9223372036854775808"
+        mov rax, 45 ; '-'
+        call print_char_rax
+        mov rax, 57 ; '9'
+        call print_char_rax
+        mov rax, 50 ; '2'
+        call print_char_rax
+        call print_char_rax ; 2
+        mov rax, 51 ; '3'
+        call print_char_rax
+        call print_char_rax ; 3
+        mov rax, 55 ; '7'
+        call print_char_rax
+        mov rax, 50 ; '2'
+        call print_char_rax
+        mov rax, 48 ; '0'
+        call print_char_rax
+        mov rax, 51 ; '3'
+        call print_char_rax
+        mov rax, 54 ; '6'
+        call print_char_rax
+        mov rax, 56 ; '8'
+        call print_char_rax
+        mov rax, 53 ; '5'
+        call print_char_rax
+        mov rax, 52 ; '4'
+        call print_char_rax
+        mov rax, 55 ; '7'
+        call print_char_rax
+        call print_char_rax ; 7
+        mov rax, 53 ; '5'
+        call print_char_rax
+        mov rax, 56 ; '8'
+        call print_char_rax
+        mov rax, 48 ; '0'
+        call print_char_rax
+        mov rax, 56 ; '8'
+        call print_char_rax
+
+        pop rcx
+        pop rdx
+        pop rbx
+        ret
+    tutup_jika
+
     cmp rdi, 0
     jika_negatif
         mov rax, 45 ; '-'

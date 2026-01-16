@@ -7,6 +7,9 @@ fungsi main
     fmt2:
     data "Hello %s\n\0"
 
+    fmt3:
+    data "Min Int: %d\n\0"
+
     str_val:
     data "Morph\0"
 
@@ -23,6 +26,11 @@ fungsi main
     ; Call 2
     mov rdi, fmt2
     mov rsi, str_val
+    call printmorph
+
+    ; Call 3 (Min Int)
+    mov rdi, fmt3
+    mov rsi, 0x8000000000000000
     call printmorph
 
     mov rax, 60
