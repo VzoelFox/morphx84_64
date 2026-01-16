@@ -413,7 +413,9 @@ compile_line() {
             fi
         elif is_mem_operand "$arg1"; then
              if [[ -n "$arg2" ]] && is_reg "$arg2"; then suffix=".mem.r64";
-             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32";
+             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then
+                 if is_imm8 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.mem.imm8]}" ]]; then suffix=".mem.imm8";
+                 else suffix=".mem.imm32"; fi
              else suffix=".mem64"; fi
         elif is_imm "$arg1"; then
              if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then suffix=".imm8";

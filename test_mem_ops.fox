@@ -1,0 +1,64 @@
+fungsi main
+  ; Debug Start
+  debug
+
+  ; Alloc Space on Stack (Aligned 16)
+  sub rsp, 16
+
+  ; Test 1: MOV [rsp], 10 (Existing)
+  mov [rsp], 10
+
+  ; Test 2: ADD [rsp], 5 (New: add.mem.imm8)
+  add [rsp], 5
+  ; Result should be 15
+
+  ; Verify 15
+  mov rax, [rsp]
+  sub rax, 15
+  jika_nol
+    debug ; Expect DEBUG (1)
+  tutup_jika
+
+  ; Test 3: INC [rsp] (New: inc.mem64)
+  inc [rsp]
+  ; Result should be 16
+
+  ; Verify 16
+  mov rax, [rsp]
+  sub rax, 16
+  jika_nol
+    debug ; Expect DEBUG (2)
+  tutup_jika
+
+  ; Test 4: ADD reg, [rsp] (New: add.r64.mem)
+  mov rbx, 4
+  add rbx, [rsp]
+  ; Result rbx = 4 + 16 = 20
+
+  ; Verify 20
+  mov rax, rbx
+  sub rax, 20
+  jika_nol
+    debug ; Expect DEBUG (3)
+  tutup_jika
+
+  ; Test 5: Logical AND [rsp], 0x0F (New: and.mem.imm8)
+  mov [rsp], 255 ; 0xFF
+  and [rsp], 15  ; 0x0F
+  ; Result should be 15
+
+  ; Verify 15
+  mov rax, [rsp]
+  sub rax, 15
+  jika_nol
+    debug ; Expect DEBUG (4)
+  tutup_jika
+
+  ; Cleanup
+  add rsp, 16
+
+  ; Exit
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi
