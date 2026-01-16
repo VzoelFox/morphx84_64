@@ -3,3 +3,4 @@ Ambil morphlib/aritmatika.fox
 Ambil morphlib/logika.fox
 Ambil morphlib/sys.fox
 Ambil morphlib/alloc.fox
+Ambil morphlib/io.fox

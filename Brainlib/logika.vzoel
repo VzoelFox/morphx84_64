@@ -21,16 +21,19 @@ not.r64             rex=W opcode=0xF7 modrm=2       ; [AI_HINT: Logika NOT (nega
 ; Shift Left (Arithmetic/Logical are same for Left)
 shl.r64.imm8        rex=W opcode=0xC1 modrm=4 imm8  ; [AI_HINT: Geser bit ke kiri (shift left) sebesar immediate 8-bit (<<)]
 shl.r64.cl          rex=W opcode=0xD3 modrm=4       ; [AI_HINT: Geser bit ke kiri (shift left) sebesar isi register CL (<<)]
+shl.r64             rex=W opcode=0xD3 modrm=4       ; [AI_HINT: Alias shl.r64.cl]
 sal.r64.imm8        rex=W opcode=0xC1 modrm=4 imm8  ; [AI_HINT: Alias shl (<<)]
 sal.r64.cl          rex=W opcode=0xD3 modrm=4       ; [AI_HINT: Alias shl (<<)]
 
 ; Shift Right (Logical)
 shr.r64.imm8        rex=W opcode=0xC1 modrm=5 imm8  ; [AI_HINT: Geser bit ke kanan (logical shift right) sebesar immediate 8-bit (>>)]
 shr.r64.cl          rex=W opcode=0xD3 modrm=5       ; [AI_HINT: Geser bit ke kanan (logical shift right) sebesar isi register CL (>>)]
+shr.r64             rex=W opcode=0xD3 modrm=5       ; [AI_HINT: Alias shr.r64.cl]
 
 ; Shift Right (Arithmetic - preserves sign)
 sar.r64.imm8        rex=W opcode=0xC1 modrm=7 imm8  ; [AI_HINT: Geser bit ke kanan (arithmetic shift right) sebesar immediate 8-bit]
 sar.r64.cl          rex=W opcode=0xD3 modrm=7       ; [AI_HINT: Geser bit ke kanan (arithmetic shift right) sebesar isi register CL]
+sar.r64             rex=W opcode=0xD3 modrm=7       ; [AI_HINT: Alias sar.r64.cl]
 
 ; Rotates
 rol.r64.imm8        rex=W opcode=0xC1 modrm=0 imm8  ; [AI_HINT: Putar bit ke kiri (rotate left) sebesar immediate 8-bit]
