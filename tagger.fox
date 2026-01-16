@@ -1,3 +1,5 @@
 Ambil boot.fox
 Ambil morphlib/aritmatika.fox
 Ambil morphlib/logika.fox
+Ambil morphlib/sys.fox
+Ambil morphlib/alloc.fox
