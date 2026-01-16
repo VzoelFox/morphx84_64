@@ -29,6 +29,12 @@ stosw               opcode=0x66,0xAB ; [AI_HINT: Simpan AX ke [RDI]]
 stosd               opcode=0xAB ; [AI_HINT: Simpan EAX ke [RDI]]
 stosq               rex=W opcode=0xAB ; [AI_HINT: Simpan RAX ke [RDI]]
 
+; Load Data String (Read)
+lodsb               opcode=0xAC ; [AI_HINT: Muat byte dari [RSI] ke AL]
+lodsw               opcode=0x66,0xAD ; [AI_HINT: Muat word dari [RSI] ke AX]
+lodsd               opcode=0xAD ; [AI_HINT: Muat dword dari [RSI] ke EAX]
+lodsq               rex=W opcode=0xAD ; [AI_HINT: Muat qword dari [RSI] ke RAX]
+
 ; Compare Data String (Compare)
 cmpsb               opcode=0xA6 ; [AI_HINT: Bandingkan byte [RSI] dengan [RDI]]
 cmpsw               opcode=0x66,0xA7 ; [AI_HINT: Bandingkan word]
