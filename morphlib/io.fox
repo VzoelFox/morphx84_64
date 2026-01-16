@@ -1,0 +1,258 @@
+; Morph IO Library
+; [AI_HINT: Implementasi IO level tinggi menggunakan syscall sys_write]
+
+fungsi string_len
+    ; Input: rdi (ptr)
+    ; Output: rax (length)
+    ; Clobbers: rbx, rdx
+    mov rax, 0
+    loop strlen_loop
+        mov rbx, rdi
+        add rbx, rax
+        mov rdx, [rbx]
+        and rdx, 0xFF
+        cmp rdx, 0
+        jika_sama
+            kembali
+        tutup_jika
+        inc rax
+    tutup_loop
+    ret
+tutup_fungsi
+
+fungsi print_string
+    ; Input: rdi (ptr string null-terminated)
+    push rbx ; Save RBX (Arg pointer in printmorph)
+    push rsi
+    push rdx
+    push rcx
+    push r11
+
+    call string_len
+    mov rdx, rax ; length
+    mov rsi, rdi ; buffer
+    mov rdi, 1   ; stdout
+    mov rax, 1   ; sys_write
+    syscall
+
+    pop r11
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi print_char_rax
+    ; Input: rax (char code)
+    push rsi
+    push rdx
+    push rdi
+    push rcx
+    push r11
+    push rax ; Store char on stack
+
+    mov rsi, rsp ; Point to char on stack
+    mov rdx, 1
+    mov rdi, 1
+    mov rax, 1
+    syscall
+
+    pop rax
+    pop r11
+    pop rcx
+    pop rdi
+    pop rdx
+    pop rsi
+    ret
+tutup_fungsi
+
+fungsi print_newline
+    mov rax, 10
+    call print_char_rax
+    ret
+tutup_fungsi
+
+fungsi print_hex
+    ; Input: rdi (value)
+    push rbx
+    push rcx
+    push rdx
+
+    mov rcx, 60 ; Shift amount (start from top nibble)
+
+    loop hex_loop
+        mov rbx, rdi
+        mov rdx, rcx
+        ; Shift right using CL (implicit in shr rbx)
+        shr rbx
+        and rbx, 0xF
+
+        ; Convert to ASCII
+        cmp rbx, 9
+        jika_diatas
+            add rbx, 55 ; 'A' - 10 = 65 - 10 = 55
+        lainnya
+            add rbx, 48 ; '0'
+        tutup_jika
+
+        mov rax, rbx
+        call print_char_rax
+
+        sub rcx, 4
+
+        ; Check underflow
+        cmp rcx, 60
+        jika_diatas
+             henti
+        tutup_jika
+    tutup_loop
+
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi print_decimal
+    ; Input: rdi (signed integer)
+    push rbx
+    push rdx
+    push rcx
+
+    cmp rdi, 0
+    jika_negatif
+        mov rax, 45 ; '-'
+        call print_char_rax
+        neg rdi
+    tutup_jika
+
+    mov rax, rdi
+    mov rbx, 10
+    mov rcx, 0 ; Count digits
+
+    ; Push digits to stack
+    loop decimal_push
+        mov rdx, 0
+        div rbx ; rax = rax / 10, rdx = rax % 10
+        add rdx, 48 ; '0'
+        push rdx
+        inc rcx
+
+        cmp rax, 0
+        jika_sama
+            henti
+        tutup_jika
+    tutup_loop
+
+    ; Pop and print
+    loop decimal_print
+        pop rax
+        call print_char_rax
+        dec rcx
+        cmp rcx, 0
+        jika_sama
+            henti
+        tutup_jika
+    tutup_loop
+
+    pop rcx
+    pop rdx
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi printmorph
+    ; Variadic Printf
+    ; Input: rdi (fmt), rsi, rdx, rcx, r8, r9 (args)
+
+    ; Prologue: Save Args to Stack (Reverse order)
+    push r9
+    push r8
+    push rcx
+    push rdx
+    push rsi
+
+    mov rbp, rsp ; Save stack base for args
+    mov rbx, rbp ; Argument Cursor
+
+    mov rsi, rdi ; Format string source
+    cld
+
+    loop pm_loop
+        lodsb ; Load byte from [rsi] to al, inc rsi
+        and rax, 0xFF
+
+        cmp rax, 0
+        jika_sama
+            lompat pm_exit
+        tutup_jika
+
+        cmp rax, 37 ; '%'
+        jika_sama
+            lodsb ; Next char
+            and rax, 0xFF
+
+            cmp rax, 115 ; 's'
+            jika_sama
+                mov rdi, [rbx]
+                add rbx, 8
+                push rsi ; Save string ptr
+                call print_string
+                pop rsi
+                lanjut
+            tutup_jika
+
+            cmp rax, 100 ; 'd'
+            jika_sama
+                mov rdi, [rbx]
+                add rbx, 8
+                push rsi
+                call print_decimal
+                pop rsi
+                lanjut
+            tutup_jika
+
+            cmp rax, 120 ; 'x'
+            jika_sama
+                mov rdi, [rbx]
+                add rbx, 8
+                push rsi
+                call print_hex
+                pop rsi
+                lanjut
+            tutup_jika
+
+             cmp rax, 99 ; 'c'
+            jika_sama
+                mov rax, [rbx]
+                add rbx, 8
+                push rsi
+                call print_char_rax
+                pop rsi
+                lanjut
+            tutup_jika
+
+            ; Unknown format, print both % and char?
+            ; For now, just print the char
+            push rsi
+            call print_char_rax
+            pop rsi
+            lanjut
+        tutup_jika
+
+        ; Normal char
+        push rsi
+        call print_char_rax
+        pop rsi
+    tutup_loop
+
+    pm_exit:
+    ; Epilogue: Cleanup Stack
+    pop rsi
+    pop rdx
+    pop rcx
+    pop r8
+    pop r9
+    ret
+tutup_fungsi
