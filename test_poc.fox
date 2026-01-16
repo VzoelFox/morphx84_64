@@ -5,16 +5,16 @@ fungsi main
   ; Test IF (True condition)
   mov rax, 10
   sub rax, 10
-  jika1
+  jika_nol
     debug
-  tutup_jika1
+  tutup_jika
 
   ; Test IF (False condition)
   mov rax, 5
   sub rax, 1
-  jika2
+  jika_nol
     debug
-  tutup_jika2
+  tutup_jika
 
   ; Exit
   mov rax, 60
