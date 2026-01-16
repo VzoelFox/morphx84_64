@@ -1,26 +1,62 @@
 ; Morph Aritmatika (Arithmetic)
 
 ; Addition
-add.r64.r64         rex=W opcode=0x01 modrm=reg,reg ; [AI_HINT: Tambah register dengan register]
-add.r64.imm32       rex=W opcode=0x81 modrm=0 imm32 ; [AI_HINT: Tambah register dengan angka 32-bit]
-add.r64.imm8        rex=W opcode=0x83 modrm=0 imm8  ; [AI_HINT: Tambah register dengan angka 8-bit]
+add.r64.r64         rex=W opcode=0x01 modrm=reg,reg ; [AI_HINT: Tambah register dengan register (+)]
+add.r64.imm32       rex=W opcode=0x81 modrm=0 imm32 ; [AI_HINT: Tambah register dengan angka 32-bit (+)]
+add.r64.imm8        rex=W opcode=0x83 modrm=0 imm8  ; [AI_HINT: Tambah register dengan angka 8-bit (+)]
+
+; Add with Carry (ZFC Support)
+adc.r64.r64         rex=W opcode=0x11 modrm=reg,reg ; [AI_HINT: Tambah dengan Carry (+ + C)]
+adc.r64.imm32       rex=W opcode=0x81 modrm=2 imm32 ; [AI_HINT: Tambah dengan Carry immediate 32-bit]
+adc.r64.imm8        rex=W opcode=0x83 modrm=2 imm8  ; [AI_HINT: Tambah dengan Carry immediate 8-bit]
 
 ; Subtraction
-sub.r64.r64         rex=W opcode=0x29 modrm=reg,reg ; [AI_HINT: Kurang register dengan register]
-sub.r64.imm32       rex=W opcode=0x81 modrm=5 imm32 ; [AI_HINT: Kurang register dengan angka 32-bit]
-sub.r64.imm8        rex=W opcode=0x83 modrm=5 imm8  ; [AI_HINT: Kurang register dengan angka 8-bit]
+sub.r64.r64         rex=W opcode=0x29 modrm=reg,reg ; [AI_HINT: Kurang register dengan register (-)]
+sub.r64.imm32       rex=W opcode=0x81 modrm=5 imm32 ; [AI_HINT: Kurang register dengan angka 32-bit (-)]
+sub.r64.imm8        rex=W opcode=0x83 modrm=5 imm8  ; [AI_HINT: Kurang register dengan angka 8-bit (-)]
+
+; Subtract with Borrow (ZFC Support)
+sbb.r64.r64         rex=W opcode=0x19 modrm=reg,reg ; [AI_HINT: Kurang dengan Borrow (- - C)]
+sbb.r64.imm32       rex=W opcode=0x81 modrm=3 imm32 ; [AI_HINT: Kurang dengan Borrow immediate 32-bit]
+sbb.r64.imm8        rex=W opcode=0x83 modrm=3 imm8  ; [AI_HINT: Kurang dengan Borrow immediate 8-bit]
 
 ; Multiplication (Signed)
-imul.r64.r64        rex=W opcode=0x0F,0xAF modrm=reg,reg ; [AI_HINT: Kali (signed) register dengan register]
+imul.r64.r64        rex=W opcode=0x0F,0xAF modrm=reg,reg ; [AI_HINT: Kali (signed) register dengan register (*)]
+imul.r64.imm32      rex=W opcode=0x69 modrm=reg,reg imm32 ; [AI_HINT: Kali (signed) register dengan immediate 32-bit (*)]
 
-; Division (Signed) - idiv r64 (RDX:RAX / r64)
-idiv.r64            rex=W opcode=0xF7 modrm=7 ; [AI_HINT: Bagi (signed) RDX:RAX dengan register]
+; Multiplication (Unsigned)
+mul.r64             rex=W opcode=0xF7 modrm=4 ; [AI_HINT: Kali (unsigned) RAX dengan register (RAX * r64 -> RDX:RAX)]
+
+; Division (Signed)
+idiv.r64            rex=W opcode=0xF7 modrm=7 ; [AI_HINT: Bagi (signed) RDX:RAX dengan register (/ %)]
+
+; Division (Unsigned)
+div.r64             rex=W opcode=0xF7 modrm=6 ; [AI_HINT: Bagi (unsigned) RDX:RAX dengan register (/ %)]
+
+; Sign Extension (ZFC Support)
+cqo                 rex=W opcode=0x99 ; [AI_HINT: Sign Extend RAX ke RDX:RAX (persiapan idiv)]
 
 ; Increment
-inc.r64             rex=W opcode=0xFF modrm=0 ; [AI_HINT: Tambah 1 ke register]
+inc.r64             rex=W opcode=0xFF modrm=0 ; [AI_HINT: Tambah 1 ke register (++)]
 
 ; Decrement
-dec.r64             rex=W opcode=0xFF modrm=1 ; [AI_HINT: Kurang 1 dari register]
+dec.r64             rex=W opcode=0xFF modrm=1 ; [AI_HINT: Kurang 1 dari register (--)]
 
 ; Negate (Two's Complement)
 neg.r64             rex=W opcode=0xF7 modrm=3 ; [AI_HINT: Negasikan nilai register ( -x )]
+
+; Trigonometry & Floating Point (x87 FPU) - Implicit st(0)
+finit               opcode=0x9B,0xDB,0xE3 ; [AI_HINT: Inisialisasi FPU]
+fld.mem64           opcode=0xDD modrm=0   ; [AI_HINT: Load double (64-bit float) dari memori ke st(0)]
+fstp.mem64          opcode=0xDD modrm=3   ; [AI_HINT: Store double ke memori dan pop st(0)]
+fld1                opcode=0xD9,0xE8      ; [AI_HINT: Load konstanta 1.0 ke st(0)]
+fldz                opcode=0xD9,0xEE      ; [AI_HINT: Load konstanta 0.0 ke st(0)]
+fldpi               opcode=0xD9,0xEB      ; [AI_HINT: Load konstanta PI ke st(0)]
+faddp               opcode=0xDE,0xC1      ; [AI_HINT: Tambah st(1) = st(1) + st(0), pop]
+fsubp               opcode=0xDE,0xE9      ; [AI_HINT: Kurang st(1) = st(1) - st(0), pop]
+fmulp               opcode=0xDE,0xC9      ; [AI_HINT: Kali st(1) = st(1) * st(0), pop]
+fdivp               opcode=0xDE,0xF9      ; [AI_HINT: Bagi st(1) = st(1) / st(0), pop]
+fsin                opcode=0xD9,0xFE      ; [AI_HINT: Hitung Sinus dari st(0) -> st(0)]
+fcos                opcode=0xD9,0xFF      ; [AI_HINT: Hitung Cosinus dari st(0) -> st(0)]
+fptan               opcode=0xD9,0xF2      ; [AI_HINT: Hitung Tangent dari st(0) -> st(1):st(0) (1.0 : tan)]
+fsqrt               opcode=0xD9,0xFA      ; [AI_HINT: Hitung Akar Kuadrat dari st(0)]

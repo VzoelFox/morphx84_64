@@ -1,0 +1,53 @@
+fungsi logika_unify_demo
+    ; Demo "Prop Unify" using Bit Scan & Compare Exchange
+    ; Input: rdi (Bitmask A), rsi (Bitmask B)
+    ; Output: rax (Unified Mask / Result)
+
+    ; 1. Bit Scan Forward (Find first set bit in A)
+    bsf rax, rdi
+    ; If Z flag is set (ZF=1), input was zero (no bits set)
+    jika_sama
+       ; Handle empty case
+       mov rax, -1
+       ret
+    tutup_jika
+
+    ; 2. Population Count (Count set bits in B)
+    popcnt rbx, rsi
+
+    ; 3. Atomic Unification Attempt (Mockup)
+    ; Try to swap [rdi] with rsi IF [rdi] == rax
+    ; (This is just demonstrating instruction usage, not a real algo)
+    ; cmpxchg [mem], reg -> compares eax/rax with [mem].
+    ; if equal, ZF=1, [mem] = reg. else ZF=0, eax/rax = [mem].
+
+    ; Note: Parser limitations might make memory operand syntax tricky
+    ; We'll skip complex memory cmpxchg for this demo and use register logic
+
+    ; Logic: Result = (A AND B) OR (A XOR B)
+    mov rax, rdi
+    and rax, rsi
+    mov rcx, rdi
+    xor rcx, rsi
+    or rax, rcx
+
+    ret
+tutup_fungsi
+
+fungsi himpunan_demo
+    ; Demo Himpunan (Sets) using Bit Test/Set
+    ; Input: rdi (Set base), rsi (Element index to add)
+
+    ; Add element (Set bit)
+    bts rdi, rsi
+
+    ; Check if element exists (Test bit)
+    bt rdi, rsi
+    ; Carry Flag (CF) contains the bit value
+    ; But we don't have 'jc' (Jump Carry) defined in kontrol yet?
+    ; checking kontrol.vzoel...
+    ; We have 'jb' (Jump Below) which is usually JC.
+    ; We have 'setc' (Set Byte on Carry).
+
+    ret
+tutup_fungsi

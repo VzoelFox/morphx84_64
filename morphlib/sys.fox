@@ -1,0 +1,40 @@
+; Morph System Wrappers (Linux x86-64)
+; [AI_HINT: Abstraksi System Call untuk menghindari magic number tersebar]
+
+; --- File Descriptors ---
+; STDIN  = 0
+; STDOUT = 1
+; STDERR = 2
+
+; --- System Calls ---
+
+fungsi sys_write
+    ; Input: rdi (fd), rsi (buf), rdx (len)
+    ; Output: rax (bytes written or error)
+    mov rax, 1
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_brk
+    ; Input: rdi (new_addr) - 0 for current break
+    ; Output: rax (current break)
+    mov rax, 12
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_exit
+    ; Input: rdi (error_code)
+    mov rax, 60
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_mmap
+    ; Input: rdi (addr), rsi (len), rdx (prot), r10 (flags), r8 (fd), r9 (offset)
+    ; Output: rax (addr or error)
+    mov rax, 9
+    syscall
+    ret
+tutup_fungsi
