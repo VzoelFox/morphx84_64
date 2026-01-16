@@ -6,6 +6,7 @@
 BRAINLIB_DIR="Brainlib"
 OUTPUT_FILE="output.morph"
 CURRENT_OFFSET=0
+BASE_ADDR=$((0x400078))
 PASS=1
 
 # Associative arrays
@@ -85,7 +86,18 @@ emit_byte() {
 
 emit_dword() { # 4 bytes
     local val=$1
-    # Bash handles negative numbers correctly in bitwise ops usually, but let's be safe for 32-bit
+    if ! is_imm "$val"; then
+        local target=${LABELS["$val"]}
+        if [[ -n "$target" ]]; then
+            val=$((BASE_ADDR + target))
+        elif [[ $PASS -eq 2 ]]; then
+            log "Error: Label '$val' not found"
+            exit 1
+        else
+            val=0
+        fi
+    fi
+
     local b1=$((val & 0xFF))
     local b2=$(((val >> 8) & 0xFF))
     local b3=$(((val >> 16) & 0xFF))
@@ -98,6 +110,18 @@ emit_dword() { # 4 bytes
 
 emit_qword() { # 8 bytes
     local val=$1
+    if ! is_imm "$val"; then
+        local target=${LABELS["$val"]}
+        if [[ -n "$target" ]]; then
+            val=$((BASE_ADDR + target))
+        elif [[ $PASS -eq 2 ]]; then
+            log "Error: Label '$val' not found"
+            exit 1
+        else
+            val=0
+        fi
+    fi
+
     emit_byte $((val & 0xFF))
     emit_byte $(((val >> 8) & 0xFF))
     emit_byte $(((val >> 16) & 0xFF))
@@ -319,6 +343,22 @@ compile_line() {
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
 
+    # Data Directive (String Literal)
+    if [[ "$mnemonic" == "data" ]]; then
+        local content=$(echo "$line" | cut -d'"' -f2)
+        # Use od to get hex bytes of the expanded string (handling \n, \x00, etc)
+        local hex_bytes=$(printf "%b" "$content" | od -An -v -t x1)
+
+        for byte in $hex_bytes; do
+            # byte is hex string (e.g. 48)
+            if [[ $PASS -eq 2 ]]; then
+                printf "\\x$byte" >> "$OUTPUT_FILE"
+            fi
+            CURRENT_OFFSET=$((CURRENT_OFFSET + 1))
+        done
+        return
+    fi
+
     # Debug Macro (Still Hardcoded as Macro System is not yet in place)
     if [[ "$mnemonic" == "debug" ]]; then
         compile_line "push rax"; compile_line "push rdi"; compile_line "push rsi";
@@ -364,6 +404,9 @@ compile_line() {
                      elif is_imm32 "$arg2" && [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm32]}" ]]; then suffix=".r64.imm32";
                      elif [[ -n "${ISA_OPCODES[${mnemonic}.r64.imm64]}" ]]; then suffix=".r64.imm64";
                      fi
+                else
+                     # Assume Label -> imm32 (Address)
+                     suffix=".r64.imm32"
                 fi
             else
                 suffix=".r64"

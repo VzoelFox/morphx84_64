@@ -1,0 +1,49 @@
+fungsi main
+    ; Test Script for Secure Allocator & Daemon
+
+    ; 1. Init Heap
+    call heap_init
+
+    ; 2. Init Daemon
+    call daemon_init
+
+    ; 3. Allocation Loop
+    mov r12, 0 ; Counter
+
+    loop alloc_loop
+        ; Allocate 1MB (1048576)
+        mov rdi, 1048576
+        call mem_alloc
+
+        ; Verify Magic? mem_alloc does it internally.
+        ; Validating pointer: rax should be non-zero.
+
+        inc r12
+
+        ; Print progress char '.'
+        mov rax, 46
+        call print_char_rax
+
+        ; Busy wait to allow timer to fire
+        mov rcx, 5000000 ; delay
+        loop delay
+            dec rcx
+            cmp rcx, 0
+            jika_sama
+                henti
+            tutup_jika
+        tutup_loop
+
+        ; Safety break at 50 iterations (50MB)
+        ; Daemon Limit is 10MB. Should trigger around iter 10.
+        cmp r12, 50
+        jika_diatas
+            henti
+        tutup_jika
+    tutup_loop
+
+    ; Should not reach here if Circuit Breaker works
+    mov rdi, 0
+    call sys_exit
+    ret
+tutup_fungsi
