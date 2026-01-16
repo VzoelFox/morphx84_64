@@ -43,3 +43,21 @@ rcl.r64.imm8        rex=W opcode=0xC1 modrm=2 imm8  ; [AI_HINT: Putar bit ke kir
 rcl.r64.cl          rex=W opcode=0xD3 modrm=2       ; [AI_HINT: Putar bit ke kiri melalui Carry (rotate carry left)]
 rcr.r64.imm8        rex=W opcode=0xC1 modrm=3 imm8  ; [AI_HINT: Putar bit ke kanan melalui Carry (rotate carry right)]
 rcr.r64.cl          rex=W opcode=0xD3 modrm=3       ; [AI_HINT: Putar bit ke kanan melalui Carry (rotate carry right)]
+
+; Advanced Bit Operations
+bsf.r64.r64         rex=W opcode=0x0F,0xBC modrm=reg,reg ; [AI_HINT: Cari bit set pertama dari LSB (Bit Scan Forward)]
+bsr.r64.r64         rex=W opcode=0x0F,0xBD modrm=reg,reg ; [AI_HINT: Cari bit set pertama dari MSB (Bit Scan Reverse)]
+popcnt.r64.r64      rex=W opcode=0xF3,0x0F,0xB8 modrm=reg,reg ; [AI_HINT: Hitung jumlah bit set (Population Count)]
+
+; Bit Test & Modification (Sets / Himpunan Support)
+bt.r64.imm8         rex=W opcode=0x0F,0xBA modrm=4 imm8 ; [AI_HINT: Uji bit tertentu (Bit Test)]
+bt.r64.r64          rex=W opcode=0x0F,0xA3 modrm=mem,reg ; [AI_HINT: Uji bit tertentu dengan register]
+bts.r64.imm8        rex=W opcode=0x0F,0xBA modrm=5 imm8 ; [AI_HINT: Uji dan Set bit (Bit Test & Set)]
+bts.r64.r64         rex=W opcode=0x0F,0xAB modrm=mem,reg ; [AI_HINT: Uji dan Set bit dengan register]
+btr.r64.imm8        rex=W opcode=0x0F,0xBA modrm=6 imm8 ; [AI_HINT: Uji dan Reset bit (Bit Test & Reset)]
+btr.r64.r64         rex=W opcode=0x0F,0xB3 modrm=mem,reg ; [AI_HINT: Uji dan Reset bit dengan register]
+btc.r64.imm8        rex=W opcode=0x0F,0xBA modrm=7 imm8 ; [AI_HINT: Uji dan Komplement bit (Bit Test & Complement)]
+btc.r64.r64         rex=W opcode=0x0F,0xBB modrm=mem,reg ; [AI_HINT: Uji dan Komplement bit dengan register]
+
+; Atomic / Unification
+cmpxchg.r64.r64     rex=W opcode=0x0F,0xB1 modrm=mem,reg ; [AI_HINT: Compare and Exchange (Atomic), jika RAX == dst, dst = src]
