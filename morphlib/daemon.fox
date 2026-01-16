@@ -82,6 +82,20 @@ fungsi daemon_init
     call mem_alloc
     mov rbx, rax ; Pointer to sigaction
 
+    ; ZERO OUT MEMORY (Safety First: Avoid garbage in sa_mask)
+    ; rbx = ptr, rcx = count
+    push rdi
+    push rax
+    push rcx
+    mov rdi, rbx
+    mov rax, 0
+    mov rcx, 160
+    cld
+    rep stosb
+    pop rcx
+    pop rax
+    pop rdi
+
     ; Setup sigaction
     ; offset 0: sa_handler
     mov rax, daemon_handler

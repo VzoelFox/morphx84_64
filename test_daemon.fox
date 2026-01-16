@@ -43,7 +43,9 @@ fungsi main
     tutup_loop
 
     ; Should not reach here if Circuit Breaker works
-    mov rdi, 0
+    ; If we do, it means the Daemon FAILED to trigger.
+    ; Return Error Code 1.
+    mov rdi, 1
     call sys_exit
     ret
 tutup_fungsi
