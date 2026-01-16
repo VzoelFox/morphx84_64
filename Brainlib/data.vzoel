@@ -12,6 +12,26 @@ mov.r64.mem         rex=W opcode=0x8B modrm=reg,mem   ; [AI_HINT: Baca dari memo
 mov.mem.r64         rex=W opcode=0x89 modrm=mem,reg   ; [AI_HINT: Tulis register ke memori]
 mov.mem.imm32       rex=W opcode=0xC7 modrm=0 imm32   ; [AI_HINT: Tulis angka 32-bit ke memori]
 
+; Move with Extension (Penting untuk konversi tipe data)
+; Zero Extend (Unsigned)
+; Note: .r64.r64 suffix is matched because arguments are registers
+movzx.r64.r64       rex=W opcode=0x0F,0xB6 modrm=reg,reg ; [AI_HINT: Salin byte ke register 64-bit dengan nol (Zero Extend)]
+movzx.r64.byte      rex=W opcode=0x0F,0xB6 modrm=reg,reg ; [AI_HINT: Alias]
+movzx.r64.mem       rex=W opcode=0x0F,0xB6 modrm=reg,mem ; [AI_HINT: Baca byte memori ke register 64-bit dengan nol]
+
+; Sign Extend (Signed)
+movsx.r64.r64       rex=W opcode=0x0F,0xBE modrm=reg,reg ; [AI_HINT: Salin byte ke register 64-bit dengan tanda (Sign Extend)]
+movsx.r64.byte      rex=W opcode=0x0F,0xBE modrm=reg,reg ; [AI_HINT: Alias]
+movsx.r64.mem       rex=W opcode=0x0F,0xBE modrm=reg,mem ; [AI_HINT: Baca byte memori ke register 64-bit dengan tanda]
+movsxd.r64.r32      rex=W opcode=0x63 modrm=reg,reg      ; [AI_HINT: Salin dword (32-bit) ke register 64-bit dengan tanda]
+movsxd.r64.mem32    rex=W opcode=0x63 modrm=reg,mem      ; [AI_HINT: Baca dword memori ke register 64-bit dengan tanda]
+
+; Accumulator Extension
+cdqe                rex=W opcode=0x98 ; [AI_HINT: Convert Dword to Qword (EAX -> RAX Signed)]
+cwde                opcode=0x98       ; [AI_HINT: Convert Word to Dword (AX -> EAX Signed)]
+cbw                 opcode=0x66,0x98  ; [AI_HINT: Convert Byte to Word (AL -> AX Signed)]
+cqo                 rex=W opcode=0x99 ; [AI_HINT: Convert Quad to Oct (RAX -> RDX:RAX Signed)]
+
 ; Stack Operations (Tumpukan)
 push.r64            opcode=0x50 reg_in_op ; [AI_HINT: Dorong register ke stack]
 push.imm32          opcode=0x68 imm32     ; [AI_HINT: Dorong angka 32-bit ke stack]
