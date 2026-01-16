@@ -1,0 +1,47 @@
+fungsi main
+    ; Test MUL (Unsigned) 10 * 20 = 200
+    mov rax, 10
+    mov rbx, 20
+    mul rbx
+    ; Result in RAX (200), RDX (0)
+    ; Check if RAX == 200
+    cmp rax, 200
+    jika_sama
+        debug
+    tutup_jika
+
+    ; Test IDIV (Signed) -100 / 10 = -10
+    mov rax, -100
+    mov rbx, 10
+    cqo     ; Sign extend RAX -> RDX:RAX
+    idiv rbx
+    ; Result in RAX (-10)
+    cmp rax, -10
+    jika_sama
+        debug
+    tutup_jika
+
+    ; Test ADC (Add with Carry)
+    ; STC (Set Carry) - wait, we don't have STC defined yet?
+    ; Let's force a carry via addition
+    mov rax, -1 ; 0xFF...FF
+    add rax, 1  ; overflows to 0, Carry=1
+    mov rax, 10
+    adc rax, 0  ; Should be 10 + 0 + 1 = 11
+    cmp rax, 11
+    jika_sama
+        debug
+    tutup_jika
+
+    ; Test Rotate (ROL)
+    mov rax, 1
+    rol rax, 1 ; 1 << 1 = 2
+    cmp rax, 2
+    jika_sama
+        debug
+    tutup_jika
+
+    mov rax, 60
+    mov rdi, 0
+    syscall
+tutup_fungsi

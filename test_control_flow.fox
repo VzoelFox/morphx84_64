@@ -1,0 +1,29 @@
+fungsi main
+  ; Test CMOV
+  mov rax, 10
+  mov rbx, 20
+  cmp rax, rbx
+  cmovl rax, rbx
+
+  ; Test SETE (modrm=0 test)
+  mov rax, 0
+  sete rbx
+
+  ; Test Unsigned Structure (Above)
+  mov rax, 100
+  cmp rax, 50
+  jika_diatas
+     debug
+  tutup_jika
+
+  ; Test Parity (3 = 11b = 2 bits set = Even Parity)
+  mov rax, 3
+  test rax, rax
+  jika_genap
+     debug
+  tutup_jika
+
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi
