@@ -1,0 +1,47 @@
+fungsi aritmatika_demo
+    ; Demo Aritmatika & Logika (Standard Library Mapping Demo)
+    ; Input: rdi, rsi (Arguments)
+    ; Output: rax
+
+    ; Addition (+)
+    mov rax, rdi
+    add rax, rsi
+
+    ; Subtraction (-)
+    push rax
+    mov rax, rdi
+    sub rax, rsi
+    pop rax
+
+    ; Multiplication (*) (Signed)
+    mov rax, rdi
+    imul rax, rsi
+
+    ; Division (/) (Signed)
+    ; Prepare RDX:RAX
+    mov rax, rdi
+    cqo
+    idiv rsi
+
+    ; Modulo (%) (Signed) -> Result in RDX
+    ; (Already computed by idiv above)
+    mov rax, rdx
+
+    ; Bitwise AND (&)
+    mov rax, rdi
+    and rax, rsi
+
+    ; Bitwise OR (|)
+    mov rax, rdi
+    or rax, rsi
+
+    ; Shift Left (<<)
+    mov rax, rdi
+    shl rax, 1
+
+    ; Shift Right (>>)
+    mov rax, rdi
+    shr rax, 1
+
+    ret
+tutup_fungsi

@@ -370,7 +370,8 @@ compile_line() {
             fi
         elif is_mem_operand "$arg1"; then
              if [[ -n "$arg2" ]] && is_reg "$arg2"; then suffix=".mem.r64";
-             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32"; fi
+             elif [[ -n "$arg2" ]] && is_imm "$arg2"; then suffix=".mem.imm32";
+             else suffix=".mem64"; fi
         elif is_imm "$arg1"; then
              if is_imm8 "$arg1" && [[ -n "${ISA_OPCODES[${mnemonic}.imm8]}" ]]; then suffix=".imm8";
              elif [[ -n "${ISA_OPCODES[${mnemonic}.imm32]}" ]]; then suffix=".imm32";
@@ -417,6 +418,34 @@ compile_line() {
         fi
     fi
 
+    # Handle REX for ModRM (Calculate REX.R and REX.B)
+    local r_reg=-1
+    local r_rm=-1
+    local modrm_disp_size=0
+    local modrm_disp_val=0
+
+    if [[ $has_modrm -eq 1 ]]; then
+        if [[ "$modrm_mode" == "reg,reg" ]]; then
+             r_rm=$(get_reg_id "$arg1")
+             r_reg=$(get_reg_id "$arg2")
+        elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
+             if is_mem_operand "$arg1"; then
+                 r_rm=$(get_mem_reg_id "$arg1")
+             else
+                 r_rm=$(get_reg_id "$arg1")
+             fi
+        elif [[ "$modrm_mode" == "reg,mem" ]]; then
+             r_reg=$(get_reg_id "$arg1")
+             r_rm=$(get_mem_reg_id "$arg2")
+        elif [[ "$modrm_mode" == "mem,reg" ]]; then
+             r_reg=$(get_reg_id "$arg2")
+             r_rm=$(get_mem_reg_id "$arg1")
+        fi
+
+        if [[ $r_reg -ge 8 ]]; then rex=$((rex | 0x44)); fi # REX.R
+        if [[ $r_rm -ge 8 ]]; then rex=$((rex | 0x41)); fi # REX.B
+    fi
+
     # Emit REX
     if [[ $rex -ne 0 ]]; then emit_byte $rex; fi
 
@@ -428,28 +457,39 @@ compile_line() {
 
     # Emit Opcode
     for b in "${opcode_bytes[@]}"; do emit_byte $b; done
+
     # Emit ModRM
     if [[ $has_modrm -eq 1 ]]; then
-        local modrm=0
+        local r_reg_low=0
+        if [[ $r_reg -ne -1 ]]; then r_reg_low=$((r_reg & 7)); elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then r_reg_low=$modrm_mode; fi
+
+        # Determine Mod
+        local mod=0
+        local rm_low=0
+        local needs_sib=0
+        local disp_mode=0 # 0=none, 1=disp8, 2=disp32
+
         if [[ "$modrm_mode" == "reg,reg" ]]; then
-            local r_src=$(get_reg_id "$arg2"); local r_dst=$(get_reg_id "$arg1")
-            modrm=$((0xC0 + (r_src << 3) + r_dst))
-            emit_byte $modrm
-        elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
-            local ext=$modrm_mode; local r_rm=$(get_reg_id "$arg1")
-            modrm=$((0xC0 + (ext << 3) + r_rm))
-            emit_byte $modrm
-        elif [[ "$modrm_mode" == "reg,mem" ]]; then
-             local r_reg=$(get_reg_id "$arg1"); local r_rm=$(get_mem_reg_id "$arg2")
-             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
-             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00;
-             else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
-        elif [[ "$modrm_mode" == "mem,reg" ]]; then
-             local r_reg=$(get_reg_id "$arg2"); local r_rm=$(get_mem_reg_id "$arg1")
-             if [[ $r_rm -eq 4 ]]; then emit_byte $((0x00 + (r_reg<<3) + 4)); emit_byte 0x24;
-             elif [[ $r_rm -eq 5 ]]; then emit_byte $((0x40 + (r_reg<<3) + 5)); emit_byte 0x00;
-             else emit_byte $((0x00 + (r_reg<<3) + r_rm)); fi
+            mod=3
+            rm_low=$((r_rm & 7))
+        elif is_mem_operand "$arg1" || is_mem_operand "$arg2"; then
+             mod=0
+             rm_low=$((r_rm & 7))
+             if [[ $rm_low -eq 4 ]]; then needs_sib=1; fi
+             if [[ $rm_low -eq 5 ]]; then mod=1; disp_mode=1; modrm_disp_val=0; fi # [rbp] needs disp8(0)
+        else
+            # Single operand register (not mem) treated as ModRM (e.g. shift)
+            mod=3
+            rm_low=$((r_rm & 7))
         fi
+
+        emit_byte $(( (mod << 6) + (r_reg_low << 3) + rm_low ))
+
+        if [[ $needs_sib -eq 1 ]]; then
+            emit_byte 0x24 # SIB: Scale=1, Index=None(4), Base=R12/RSP(4)
+        fi
+
+        if [[ $disp_mode -eq 1 ]]; then emit_byte $modrm_disp_val; fi
     fi
     # Emit Immediates
     if [[ $imm_size -eq 32 ]]; then
