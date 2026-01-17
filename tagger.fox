@@ -1,11 +1,2 @@
 Ambil boot.fox
-Ambil morphlib/aritmatika.fox
-Ambil morphlib/logika.fox
-Ambil morphlib/sys.fox
-Ambil morphlib/alloc.fox
-Ambil morphlib/snapshot.fox
-Ambil morphlib/daemon.fox
-Ambil morphlib/morphroutine.fox
-Ambil morphlib/io.fox
-Ambil morphlib/string.fox
-Ambil morphlib/hashmap.fox
+Ambil morphlib

@@ -16,6 +16,72 @@ fungsi sys_read
     ret
 tutup_fungsi
 
+; --- Networking Syscalls ---
+
+fungsi sys_socket
+    ; Input: rdi (domain), rsi (type), rdx (protocol)
+    ; Output: rax (sockfd or error)
+    mov rax, 41
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_connect
+    ; Input: rdi (sockfd), rsi (addr), rdx (addrlen)
+    ; Output: rax (0 or error)
+    mov rax, 42
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_accept
+    ; Input: rdi (sockfd), rsi (addr), rdx (addrlen)
+    ; Output: rax (newfd or error)
+    mov rax, 43
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_sendto
+    ; Input: rdi (sockfd), rsi (buf), rdx (len), r10 (flags), r8 (dest_addr), r9 (addrlen)
+    ; Output: rax (bytes sent or error)
+    mov rax, 44
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_recvfrom
+    ; Input: rdi (sockfd), rsi (buf), rdx (len), r10 (flags), r8 (src_addr), r9 (addrlen)
+    ; Output: rax (bytes received or error)
+    mov rax, 45
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_bind
+    ; Input: rdi (sockfd), rsi (addr), rdx (addrlen)
+    ; Output: rax (0 or error)
+    mov rax, 49
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_listen
+    ; Input: rdi (sockfd), rsi (backlog)
+    ; Output: rax (0 or error)
+    mov rax, 50
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_setsockopt
+    ; Input: rdi (sockfd), rsi (level), rdx (optname), r10 (optval), r8 (optlen)
+    ; Output: rax (0 or error)
+    mov rax, 54
+    syscall
+    ret
+tutup_fungsi
+
 fungsi sys_write
     ; Input: rdi (fd), rsi (buf), rdx (len)
     ; Output: rax (bytes written or error)

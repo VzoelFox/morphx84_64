@@ -32,12 +32,33 @@ REGISTERS["r13"]=13
 REGISTERS["r14"]=14
 REGISTERS["r15"]=15
 
+# SIMD Registers (Mapped to 0-15 for ModRM encoding)
+REGISTERS["xmm0"]=0
+REGISTERS["xmm1"]=1
+REGISTERS["xmm2"]=2
+REGISTERS["xmm3"]=3
+REGISTERS["xmm4"]=4
+REGISTERS["xmm5"]=5
+REGISTERS["xmm6"]=6
+REGISTERS["xmm7"]=7
+REGISTERS["xmm8"]=8
+REGISTERS["xmm9"]=9
+REGISTERS["xmm10"]=10
+REGISTERS["xmm11"]=11
+REGISTERS["xmm12"]=12
+REGISTERS["xmm13"]=13
+REGISTERS["xmm14"]=14
+REGISTERS["xmm15"]=15
+
 # Control Flow Stack
 declare -a STACK_TYPE
 declare -a STACK_ID
 declare -a STACK_ELSE
 STACK_PTR=0
 BLOCK_COUNTER=0
+
+# Deduplication Map
+declare -A INCLUDED_FILES
 
 log() {
     echo "[PARSER] $1" >&2
@@ -486,6 +507,9 @@ compile_line() {
         if [[ "$modrm_mode" == "reg,reg" ]]; then
              r_rm=$(get_reg_id "$arg1")
              r_reg=$(get_reg_id "$arg2")
+        elif [[ "$modrm_mode" == "dst_reg,src_reg" ]]; then
+             r_reg=$(get_reg_id "$arg1")
+             r_rm=$(get_reg_id "$arg2")
         elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
              if is_mem_operand "$arg1"; then
                  r_rm=$(get_mem_reg_id "$arg1")
@@ -576,57 +600,125 @@ compile_line() {
     fi
 }
 
+get_abs_path() {
+    readlink -f "$1"
+}
+
+process_file() {
+    local filepath="$1"
+    local abs_path=$(get_abs_path "$filepath")
+
+    if [[ -n "${INCLUDED_FILES[$abs_path]}" ]]; then
+        return
+    fi
+    INCLUDED_FILES["$abs_path"]=1
+
+    local dir=$(dirname "$filepath")
+
+    if [[ ! -f "$filepath" ]]; then
+        log "Error: File $filepath not found."
+        exit 1
+    fi
+
+    log "Processing file: $filepath"
+
+    local file_lines
+    mapfile -t file_lines < "$filepath"
+
+    for line in "${file_lines[@]}"; do
+        # Trim
+        local clean_line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+        # Strict Check: Ambil (Capital) forbidden in source
+        if [[ "$clean_line" == Ambil* ]]; then
+            log "Error: 'Ambil' (Capital) forbidden in source file '$filepath'. Use 'ambil' for local imports."
+            exit 1
+        fi
+
+        # Check: ambil (Lower)
+        if [[ "$clean_line" == ambil* ]]; then
+            local target=${clean_line#ambil }
+            target=$(echo "$target" | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+            # Resolve relative to current file's directory
+            local target_path="$dir/$target"
+            process_file "$target_path"
+        else
+            # Normal line, append to combined
+            echo "$line" >> "$COMBINED_FILE"
+        fi
+    done
+    echo "" >> "$COMBINED_FILE"
+}
+
+process_module() {
+    local dir="$1"
+    local tagger="$dir/tagger.fox"
+    local abs_tagger=$(get_abs_path "$tagger")
+
+    if [[ -n "${INCLUDED_FILES[$abs_tagger]}" ]]; then
+        return
+    fi
+    INCLUDED_FILES["$abs_tagger"]=1
+
+    if [[ ! -f "$tagger" ]]; then
+        log "Error: Module initializer '$tagger' not found."
+        exit 1
+    fi
+
+    log "Processing module: $dir"
+
+    local tagger_lines
+    mapfile -t tagger_lines < "$tagger"
+
+    for line in "${tagger_lines[@]}"; do
+        local clean_line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+        if [[ -z "$clean_line" ]]; then continue; fi
+
+        # Strict Check: ambil (Lower) forbidden in tagger
+        if [[ "$clean_line" == ambil* ]]; then
+             log "Error: 'ambil' (Lower) forbidden in module initializer '$tagger'. Use 'Ambil'."
+             exit 1
+        fi
+
+        if [[ "$clean_line" == Ambil* ]]; then
+             local target=${clean_line#Ambil }
+             target=$(echo "$target" | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+             local full_target="$dir/$target"
+
+             if [[ -d "$full_target" ]]; then
+                 process_module "$full_target"
+             elif [[ -f "$full_target" ]]; then
+                 process_file "$full_target"
+             else
+                 # Try with extension?
+                 if [[ -f "$full_target.fox" ]]; then
+                     process_file "$full_target.fox"
+                 else
+                     log "Error: Target '$full_target' not found in '$tagger'."
+                     exit 1
+                 fi
+             fi
+        fi
+    done
+}
+
 if [[ $# -lt 1 ]]; then echo "Usage: $0 <input.fox>"; exit 1; fi
 INPUT_FILE="$1"
 COMBINED_FILE="combined_input.tmp"
 
-process_tagger() {
-    # Initialize/Clear combined file
-    > "$COMBINED_FILE"
+# Clear combined file
+> "$COMBINED_FILE"
 
-    if [[ -f "tagger.fox" ]]; then
-        log "Found tagger.fox, processing dependencies..."
-
-        while IFS= read -r line; do
-            # Trim
-            line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
-            # Check for "Ambil" directive (Case sensitive as requested)
-            if [[ "$line" == Ambil* ]]; then
-                # Extract path/pattern
-                local pattern=${line#Ambil }
-                pattern=$(echo "$pattern" | sed 's/^[ \t]*//;s/[ \t]*$//') # Trim again
-
-                # Handle Globs expansion
-                local found_files=($pattern)
-                if [[ "${found_files[0]}" == "$pattern" && ! -e "$pattern" ]]; then
-                     log "  Warning: No files found for pattern '$pattern'"
-                     continue
-                fi
-
-                for f in $pattern; do
-                    if [[ -f "$f" ]]; then
-                         log "  Including: $f"
-                         cat "$f" >> "$COMBINED_FILE"
-                         echo "" >> "$COMBINED_FILE" # Ensure newline
-                    fi
-                done
-            fi
-        done < "tagger.fox"
-    fi
-
-    # Append Main Input File
-    if [[ -f "$INPUT_FILE" ]]; then
-        log "Processing main file: $INPUT_FILE"
-        cat "$INPUT_FILE" >> "$COMBINED_FILE"
-        echo "" >> "$COMBINED_FILE"
-    else
-        log "Error: Input file $INPUT_FILE not found."
-        exit 1
-    fi
-}
-
+# 1. Load ISA
 load_isa
-process_tagger
+
+# 2. Process Dependencies (Root Tagger + Input File)
+# We treat the root directory as the root module.
+process_module "."
+process_file "$INPUT_FILE"
 
 log "PASS 1: Scanning Labels..."
 PASS=1; init_output

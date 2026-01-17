@@ -1,0 +1,38 @@
+ambil sys.fox
+
+; --- Constants ---
+; AF_INET = 2 (IPv4)
+; SOCK_STREAM = 1 (TCP)
+; IPPROTO_TCP = 6
+
+fungsi net_socket
+    ; Creates a TCP/IPv4 socket
+    ; Input: None
+    ; Output: rax (sockfd or error)
+    mov rdi, 2 ; AF_INET
+    mov rsi, 1 ; SOCK_STREAM
+    mov rdx, 0 ; Protocol 0 (IP)
+    call sys_socket
+    ret
+tutup_fungsi
+
+fungsi net_bind
+    ; Binds socket to address
+    ; Input: rdi (sockfd), rsi (sockaddr_ptr), rdx (addrlen)
+    call sys_bind
+    ret
+tutup_fungsi
+
+fungsi net_listen
+    ; Listen on socket
+    ; Input: rdi (sockfd), rsi (backlog)
+    call sys_listen
+    ret
+tutup_fungsi
+
+fungsi net_accept
+    ; Accept connection
+    ; Input: rdi (sockfd), rsi (sockaddr_ptr), rdx (addrlen_ptr)
+    call sys_accept
+    ret
+tutup_fungsi
