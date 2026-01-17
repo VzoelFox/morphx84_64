@@ -1,0 +1,149 @@
+; Test Suite for Morph Hashmap Library
+
+key1:
+ data "username\x00"
+val1:
+ data "jules\x00"
+
+key2:
+ data "role\x00"
+val2:
+ data "admin\x00"
+
+key3:
+ data "lang\x00"
+val3:
+ data "indonesia\x00"
+
+val2_update:
+ data "superuser\x00"
+
+msg_start:
+ data "[TEST] Hashmap Start...\x00"
+
+msg_put:
+ data "[TEST] map_put...\x00"
+
+msg_get:
+ data "[TEST] map_get...\x00"
+
+msg_update:
+ data "[TEST] map_update...\x00"
+
+msg_pass:
+ data "PASS\n\x00"
+
+msg_fail:
+ data "FAIL\n\x00"
+
+fungsi assert_str_eq
+    ; Input: rdi (Msg), rsi (Exp), rdx (Act)
+    push rdi
+    push rsi
+    push rdx
+
+    call print_string
+
+    pop rdx
+    pop rsi
+
+    cmp rdx, 0
+    jika_sama
+        mov rdi, msg_fail
+        call print_string
+        pop rdi
+        ret
+    tutup_jika
+
+    mov rdi, rdx
+    ; rsi = Exp
+    call str_compare
+
+    cmp rax, 0
+    jika_sama
+        mov rdi, msg_pass
+        call print_string
+    lainnya
+        mov rdi, msg_fail
+        call print_string
+    tutup_jika
+
+    pop rdi
+    ret
+tutup_fungsi
+
+fungsi main
+    call heap_init
+
+    mov rdi, msg_start
+    call print_string
+    mov rdi, 10
+    call print_char_rax
+
+    ; Create Map (Capacity 16)
+    mov rdi, 16
+    call map_create
+    mov rbx, rax ; Simpan Map Ptr di rbx
+
+    ; --- Test Put ---
+    mov rdi, msg_put
+    call print_string
+    mov rdi, 10
+    call print_char_rax
+
+    ; Put (username, jules)
+    mov rdi, rbx
+    mov rsi, key1
+    mov rdx, val1
+    call map_put
+
+    ; Put (role, admin)
+    mov rdi, rbx
+    mov rsi, key2
+    mov rdx, val2
+    call map_put
+
+    ; --- Test Get ---
+    ; Get username
+    mov rdi, rbx
+    mov rsi, key1
+    call map_get
+
+    ; Verify "jules"
+    mov rdx, rax
+    mov rsi, val1
+    mov rdi, msg_get
+    call assert_str_eq
+
+    ; Get role
+    mov rdi, rbx
+    mov rsi, key2
+    call map_get
+
+    ; Verify "admin"
+    mov rdx, rax
+    mov rsi, val2
+    mov rdi, msg_get
+    call assert_str_eq
+
+    ; --- Test Update ---
+    ; Put (role, superuser)
+    mov rdi, rbx
+    mov rsi, key2
+    mov rdx, val2_update
+    call map_put
+
+    ; Get role
+    mov rdi, rbx
+    mov rsi, key2
+    call map_get
+
+    ; Verify "superuser"
+    mov rdx, rax
+    mov rsi, val2_update
+    mov rdi, msg_update
+    call assert_str_eq
+
+    mov rdi, 0
+    call sys_exit
+tutup_fungsi

@@ -224,8 +224,16 @@ fungsi printmorph
     push rdx
     push rsi
 
+    push rbx ; Save RBX (Callee Saved)
+
     mov rbp, rsp ; Save stack base for args
-    mov rbx, rbp ; Argument Cursor
+    ; Args are at rbp + 8 (old rsi) because we pushed rbx
+    ; Stack: [r9][r8][rcx][rdx][rsi][rbx][ret]
+    ; rbp points to top (rbx).
+    ; rsi is at rbp + 8.
+
+    mov rbx, rbp
+    add rbx, 8 ; Point to first arg (rsi)
 
     mov rsi, rdi ; Format string source
     cld
@@ -300,6 +308,8 @@ fungsi printmorph
 
     pm_exit:
     ; Epilogue: Cleanup Stack
+    pop rbx ; Restore RBX
+
     pop rsi
     pop rdx
     pop rcx

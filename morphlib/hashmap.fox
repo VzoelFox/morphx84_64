@@ -1,0 +1,297 @@
+; Morph Hashmap Library
+; [AI_HINT: Implementasi Hashmap dengan Chaining menggunakan Allocator dan String Lib]
+; Dependensi: morphlib/alloc.fox, morphlib/string.fox
+
+; Struktur HashMap:
+; [0-7] Capacity (Jumlah Bucket)
+; [8-15] Count (Jumlah Item - opsional, belum dipakai logika kritis)
+; [16...] Buckets Array (Pointer ke Node pertama)
+
+; Struktur Node:
+; [0-7] Key (String Ptr)
+; [8-15] Value (Data Ptr)
+; [16-23] Next (Node Ptr)
+
+fungsi map_hash
+    ; Input: rdi (String Ptr)
+    ; Output: rax (Hash Value)
+    ; Algoritma: DJB2 (hash = hash * 33 + char)
+
+    push rbx
+    push rcx
+    push rdi
+
+    mov rax, 5381 ; Initial hash
+    mov rbx, 0
+
+    loop hash_loop
+        movzx rbx, [rdi] ; Load byte (char)
+
+        cmp rbx, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        ; hash = hash * 33 + char
+        ; hash * 33 = (hash << 5) + hash
+        mov rcx, rax
+        shl rcx, 5
+        add rax, rcx
+        add rax, rbx
+
+        inc rdi
+    tutup_loop
+
+    pop rdi
+    pop rcx
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi map_create
+    ; Input: rdi (Capacity)
+    ; Output: rax (Map Ptr)
+
+    push rdi
+    push rcx
+
+    ; Size = 16 (Header) + (Capacity * 8)
+    mov rax, rdi
+    mov rcx, 8
+    mul rcx ; rax = Capacity * 8
+    add rax, 16
+
+    push rax ; Size
+    push rdi ; Capacity
+
+    mov rdi, rax
+    call mem_alloc
+    mov rbx, rax ; Map Ptr
+
+    pop rdi ; Restore Capacity
+    pop rax ; Restore Size
+
+    ; Init Header
+    mov [rbx], rdi ; Capacity
+
+    mov rdx, 0
+    mov rcx, rbx
+    add rcx, 8
+    mov [rcx], rdx ; Count = 0
+
+    ; Init Buckets (Zeroing)
+    ; Buckets start at rbx + 16
+    ; Count = Capacity (rdi)
+    ; Rep Stosq
+
+    push rdi
+    push rax
+
+    mov rcx, rdi ; Count
+    mov rax, 0   ; Value
+    mov rdi, rbx
+    add rdi, 16  ; Dest
+    cld
+    rep stosq
+
+    pop rax
+    pop rdi
+
+    mov rax, rbx ; Return Map Ptr
+
+    pop rcx
+    pop rdi
+    ret
+tutup_fungsi
+
+fungsi map_put
+    ; Input: rdi (Map Ptr), rsi (Key Ptr), rdx (Value Ptr)
+    ; Output: None
+
+    push rbx
+    push r12
+    push r13
+
+    mov r12, rdx ; Save Value Ptr (Callee Save reg r12)
+    mov r13, rsi ; Save Key Ptr (Callee Save reg r13)
+
+    ; 1. Hitung Hash
+    ; rdi is Map Ptr.
+    ; rsi is Key Ptr.
+    push rdi
+    mov rdi, r13
+    call map_hash
+    mov r8, rax ; Hash
+    pop rdi
+
+    ; 2. Hitung Index = Hash % Capacity
+    mov rax, r8
+    mov rdx, 0 ; Clear rdx for div
+
+    mov rcx, [rdi] ; Capacity
+    div rcx        ; rax = div, rdx = rem (Index)
+
+    mov r9, rdx ; r9 = Index
+
+    ; 3. Cari Bucket
+    ; Bucket Ptr = MapPtr + 16 + (Index * 8)
+    mov r10, rdi
+    add r10, 16
+
+    mov rax, r9
+    mov rbx, 8
+    mul rbx
+    add r10, rax ; r10 menunjuk ke slot bucket
+
+    ; 4. Traverse Linked List
+    mov rbx, r10 ; rbx = Address of Current Pointer field
+
+    loop put_traverse
+        mov rcx, [rbx] ; rcx = Node Ptr
+
+        cmp rcx, 0
+        jika_sama
+            ; End of list (or empty bucket). Insert new node here.
+
+            ; Alloc Node (24 bytes)
+            push rdi
+            push rbx
+
+            mov rdi, 24
+            call mem_alloc
+            mov r8, rax ; New Node
+
+            pop rbx
+            pop rdi
+
+            ; Fill Node
+            mov [r8], r13   ; Key
+            mov r10, r8
+            add r10, 8
+            mov [r10], r12  ; Value
+            mov r10, r8
+            add r10, 16
+            mov r11, 0
+            mov [r10], r11  ; Next = 0
+
+            ; Link prev (rbx) to New Node
+            mov [rbx], r8
+
+            henti
+        tutup_jika
+
+        ; Cek Key (Update jika ada)
+        push rdi
+        push rcx
+        push rbx
+
+        mov rdi, [rcx] ; Node Key
+        mov rsi, r13   ; Input Key
+        call str_compare
+
+        ; rax 0 jika sama
+        cmp rax, 0
+        jika_sama
+            ; Key match! Update Value.
+            pop rbx
+            pop rcx ; rcx = Node Ptr
+            pop rdi
+
+            mov r10, rcx
+            add r10, 8
+            mov [r10], r12 ; Update Value
+
+            henti
+        tutup_jika
+
+        pop rbx
+        pop rcx
+        pop rdi
+
+        ; Move to Next Node field
+        ; rbx should point to Node->Next
+        mov rbx, rcx
+        add rbx, 16
+    tutup_loop
+
+    pop r13
+    pop r12
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi map_get
+    ; Input: rdi (Map Ptr), rsi (Key Ptr)
+    ; Output: rax (Value Ptr), 0 if not found
+
+    push rbx
+    push r13
+
+    mov r13, rsi ; Save Key Ptr
+
+    ; 1. Hash
+    push rdi
+    mov rdi, r13
+    call map_hash
+    mov r8, rax
+    pop rdi
+
+    ; 2. Index
+    mov rax, r8
+    mov rdx, 0
+    mov rcx, [rdi]
+    div rcx
+    mov r9, rdx ; Index
+
+    ; 3. Bucket Ptr
+    mov r10, rdi
+    add r10, 16
+
+    mov rax, r9
+    mov rbx, 8
+    mul rbx
+    add r10, rax
+
+    ; 4. Traverse
+    mov rcx, [r10] ; First Node
+
+    loop get_traverse
+        cmp rcx, 0
+        jika_sama
+            mov rax, 0 ; Not found
+            henti
+        tutup_jika
+
+        ; Cek Key
+        push rdi
+        push rcx
+
+        mov rdi, [rcx] ; Node Key
+        mov rsi, r13   ; Input Key
+        call str_compare
+
+        cmp rax, 0
+        jika_sama
+            ; Found!
+            pop rcx
+            pop rdi
+
+            mov r10, rcx
+            add r10, 8
+            mov rax, [r10] ; Return Value
+            henti
+        tutup_jika
+
+        pop rcx
+        pop rdi
+
+        ; Next Node
+        mov r10, rcx
+        add r10, 16
+        mov rcx, [r10]
+    tutup_loop
+
+    pop r13
+    pop rbx
+    ret
+tutup_fungsi

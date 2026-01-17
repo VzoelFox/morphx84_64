@@ -5,6 +5,7 @@
 
 BRAINLIB_DIR="Brainlib"
 OUTPUT_FILE="output.morph"
+SYM_FILE="output.sym"
 CURRENT_OFFSET=0
 BASE_ADDR=$((0x400078))
 PASS=1
@@ -68,6 +69,8 @@ init_output() {
     if [[ $PASS -eq 2 ]]; then
         # Write Magic Header VZOELFOX (8 bytes)
         printf "VZOELFOX" > "$OUTPUT_FILE"
+        # Clear Sym File
+        > "$SYM_FILE"
     fi
     CURRENT_OFFSET=0
     # Reset Stack for Pass 2 to ensure consistent ID generation
@@ -255,6 +258,9 @@ handle_structure() {
             if [[ $PASS -eq 1 ]]; then
                 LABELS["$name"]=$CURRENT_OFFSET
                 log "Fungsi: $name -> $CURRENT_OFFSET"
+            elif [[ $PASS -eq 2 ]]; then
+                local addr=$((BASE_ADDR + CURRENT_OFFSET))
+                printf "%x %s\n" $addr "$name" >> "$SYM_FILE"
             fi
         else
             BLOCK_COUNTER=$((BLOCK_COUNTER + 1))
@@ -375,7 +381,14 @@ compile_line() {
     # Label Definition (name:)
     if [[ "$mnemonic" == *":" ]]; then
         local name=${mnemonic%:}
-        if [[ $PASS -eq 1 ]]; then LABELS["$name"]=$CURRENT_OFFSET; fi
+        if [[ $PASS -eq 1 ]]; then
+            LABELS["$name"]=$CURRENT_OFFSET
+        elif [[ $PASS -eq 2 ]]; then
+            # Write to Symbol Map: Address Name
+            local addr=$((BASE_ADDR + CURRENT_OFFSET))
+            # Print as hex addr
+            printf "%x %s\n" $addr "$name" >> "$SYM_FILE"
+        fi
         return
     fi
 

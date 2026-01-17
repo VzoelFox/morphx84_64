@@ -1,0 +1,207 @@
+; Morph String Library
+; [AI_HINT: Manipulasi String menggunakan primitif memori x86-64]
+; Dependensi: morphlib/alloc.fox (untuk str_dup)
+
+fungsi str_len
+    ; Input: rdi (ptr)
+    ; Output: rax (length)
+    ; Deskripsi: Hitung panjang string (tidak termasuk null terminator) menggunakan scasb
+    push rcx
+    push rdi
+
+    mov rcx, -1 ; Max scan size (unlimited/max uint64)
+    mov rax, 0  ; Byte yang dicari (NULL)
+    cld         ; Scan maju
+
+    repne
+    scasb ; Scan [rdi] sampai ketemu al(0) atau rcx habis
+
+    ; rcx dimulai dari -1 (0xFF..FF).
+    ; Jika string len 0 (hanya null), rcx jadi -2 (0xFF..FE). not -2 = 1. dec = 0.
+    ; Jika string len 3 ("abc\0"), scan 4 kali. rcx jadi -5. not -5 = 4. dec = 3.
+
+    not rcx
+    dec rcx
+    mov rax, rcx
+
+    pop rdi
+    pop rcx
+    ret
+tutup_fungsi
+
+fungsi str_copy
+    ; Input: rdi (dest), rsi (src)
+    ; Output: rdi (menunjuk ke awal dest)
+    ; Deskripsi: Menyalin string dari src ke dest (termasuk null)
+
+    push rax
+    push rcx
+    push rsi
+    push rdi
+
+    ; Hitung panjang src dulu untuk rep movsb
+    push rdi ; Simpan dest asli
+    mov rdi, rsi
+    call str_len
+    mov rcx, rax
+    inc rcx ; Tambah 1 untuk copy Null terminator
+    pop rdi ; Restore dest
+
+    cld
+    rep
+    movsb
+
+    pop rdi
+    pop rsi
+    pop rcx
+    pop rax
+    ret
+tutup_fungsi
+
+fungsi str_concat
+    ; Input: rdi (dest), rsi (src)
+    ; Output: rdi (dest)
+    ; Deskripsi: Menggabungkan src ke akhir dest
+
+    push rax
+    push rcx
+    push rdi
+    push rsi
+
+    ; Cari ujung dest
+    push rdi
+    call str_len
+    pop rdi
+
+    add rdi, rax ; rdi menunjuk ke null terminator dest
+
+    ; Copy src ke rdi
+    call str_copy ; rdi=dest_end, rsi=src
+
+    pop rsi
+    pop rdi
+    pop rcx
+    pop rax
+    ret
+tutup_fungsi
+
+fungsi str_compare
+    ; Input: rdi (str1), rsi (str2)
+    ; Output: rax (0 jika sama, beda jika tidak)
+    ; Note: Sederhana, return 0 (sama) atau 1 (beda) atau selisih.
+    ; Kita buat return selisih karakter pertama yang beda (seperti strcmp C)
+
+    push rcx
+    push rdi
+    push rsi
+    push rdx
+
+    ; Kita tidak tahu panjangnya, jadi loop manual byte per byte lebih aman
+    ; daripada repe cmpsb tanpa tahu limit, meskipun repe cmpsb butuh rcx.
+
+    loop strcmp_loop
+        movzx rax, [rdi]
+        movzx rdx, [rsi]
+
+        cmp rax, rdx
+        jika_beda
+            ; Normalisasi return value ke 1 atau -1
+            ; Bandingkan nilai asli rax dan rdx
+
+            cmp rax, rdx
+            jika_diatas
+                mov rax, 1
+            lainnya
+                mov rax, -1
+            tutup_jika
+            lompat strcmp_done
+        tutup_jika
+
+        cmp rax, 0
+        jika_sama
+            ; Keduanya 0 (karena rax == rdx) -> End of string, Equal.
+            mov rax, 0
+            lompat strcmp_done
+        tutup_jika
+
+        inc rdi
+        inc rsi
+    tutup_loop
+
+    strcmp_done:
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rcx
+    ret
+tutup_fungsi
+
+fungsi str_dup
+    ; Input: rdi (src)
+    ; Output: rax (pointer baru di heap)
+    ; Deskripsi: Alokasi memori dan copy string
+
+    push rdi
+    push rcx
+
+    ; Hitung panjang
+    call str_len
+    mov rcx, rax
+    inc rcx ; Space untuk null
+
+    ; Alloc
+    push rdi ; Simpan src ptr
+    mov rdi, rcx
+    call mem_alloc ; rax = new ptr
+    pop rdi ; Restore src ptr
+
+    ; Copy
+    push rax ; Simpan new ptr
+    mov rsi, rdi ; src
+    mov rdi, rax ; dest
+    call str_copy
+    pop rax ; Return new ptr
+
+    pop rcx
+    pop rdi
+    ret
+tutup_fungsi
+
+fungsi str_chr
+    ; Input: rdi (str), rsi (char)
+    ; Output: rax (pointer ke char pertama ditemukan, atau 0 jika tidak ada)
+
+    push rcx
+    push rdi
+
+    ; Perlu tahu panjang untuk scasb atau loop manual sampai null
+    ; Loop manual safer untuk search until null
+
+    ; Bersihkan byte atas rsi agar aman untuk comparison
+    and rsi, 0xFF
+
+    loop strchr_loop
+        movzx rax, [rdi]
+
+        ; Cek match
+        cmp rax, rsi
+        jika_sama
+            mov rax, rdi
+            lompat strchr_found
+        tutup_jika
+
+        ; Cek null (end)
+        cmp rax, 0
+        jika_sama
+            mov rax, 0
+            lompat strchr_found
+        tutup_jika
+
+        inc rdi
+    tutup_loop
+
+    strchr_found:
+    pop rdi
+    pop rcx
+    ret
+tutup_fungsi
