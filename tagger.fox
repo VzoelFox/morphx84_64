@@ -7,3 +7,4 @@ Ambil morphlib/snapshot.fox
 Ambil morphlib/daemon.fox
 Ambil morphlib/morphroutine.fox
 Ambil morphlib/io.fox
+Ambil morphlib/string.fox
