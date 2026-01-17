@@ -1,0 +1,156 @@
+; Test Suite for Morph String Library
+
+str_hello:
+ data "Hello\x00"
+
+str_world:
+ data "World\x00"
+
+str_helloworld:
+ data "HelloWorld\x00"
+
+msg_test_len:
+ data "[TEST] str_len... \x00"
+
+msg_test_copy:
+ data "[TEST] str_copy... \x00"
+
+msg_test_concat:
+ data "[TEST] str_concat... \x00"
+
+msg_test_cmp:
+ data "[TEST] str_compare... \x00"
+
+msg_test_dup:
+ data "[TEST] str_dup... \x00"
+
+msg_test_chr:
+ data "[TEST] str_chr... \x00"
+
+msg_pass:
+ data "PASS\n\x00"
+
+msg_fail:
+ data "FAIL (Exp: %d, Act: %d)\n\x00"
+
+buffer:
+ ; Reserve space manually for buffer (32 bytes)
+ data "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+
+fungsi assert_eq
+    ; Input: rdi (Msg Ptr), rsi (Expected), rdx (Actual)
+    push rsi
+    push rdx
+    push rdi
+
+    ; Print Test Message
+    call print_string
+
+    pop rdi
+    pop rdx
+    pop rsi
+
+    cmp rsi, rdx
+    jika_sama
+        mov rdi, msg_pass
+        call print_string
+    lainnya
+        mov rdi, msg_fail
+        ; rsi = Expected, rdx = Actual
+        call printmorph
+    tutup_jika
+    ret
+tutup_fungsi
+
+fungsi main
+    call heap_init
+
+    ; --- Test 1: str_len ---
+    mov rdi, msg_test_len
+    mov rsi, 5
+
+    mov rdi, str_hello ; "Hello"
+    call str_len
+    mov rdx, rax ; Act
+
+    mov rdi, msg_test_len ; Msg
+    call assert_eq
+
+    ; --- Test 2: str_copy ---
+    mov rdi, buffer
+    mov rsi, str_hello
+    call str_copy
+
+    ; Check content (compare with "Hello")
+    mov rdi, buffer
+    mov rsi, str_hello
+    call str_compare
+    mov rdx, rax ; Act (0)
+    mov rsi, 0   ; Exp (0)
+
+    mov rdi, msg_test_copy
+    call assert_eq
+
+    ; --- Test 3: str_concat ---
+    ; Buffer has "Hello". Concat "World".
+    mov rdi, buffer
+    mov rsi, str_world
+    call str_concat
+
+    ; Check content ("HelloWorld")
+    mov rdi, buffer
+    mov rsi, str_helloworld
+    call str_compare
+    mov rdx, rax ; Act (0)
+    mov rsi, 0   ; Exp
+
+    mov rdi, msg_test_concat
+    call assert_eq
+
+    ; --- Test 4: str_compare ---
+    ; "Hello" vs "World" -> 'H' - 'W' (72 - 87 = -15)
+    ; Our impl returns -1 because 'H' < 'W'
+    mov rdi, str_hello
+    mov rsi, str_world
+    call str_compare
+    mov rdx, rax
+    mov rsi, -1
+
+    mov rdi, msg_test_cmp
+    call assert_eq
+
+    ; --- Test 5: str_dup ---
+    mov rdi, str_hello
+    call str_dup
+    mov rbx, rax ; New ptr
+
+    ; Check content
+    mov rdi, rbx
+    mov rsi, str_hello
+    call str_compare
+    mov rdx, rax
+    mov rsi, 0
+
+    mov rdi, msg_test_dup
+    call assert_eq
+
+    ; Free
+    mov rdi, rbx
+    call mem_free
+
+    ; --- Test 6: str_chr ---
+    mov rdi, str_hello ; "Hello"
+    mov rsi, 101       ; 'e'
+    call str_chr
+
+    ; Should point to str_hello + 1
+    mov rdx, rax
+    mov rsi, str_hello
+    add rsi, 1
+
+    mov rdi, msg_test_chr
+    call assert_eq
+
+    mov rdi, 0
+    call sys_exit
+tutup_fungsi
