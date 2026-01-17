@@ -1,0 +1,264 @@
+; Morph Routine (Runtime Hierarchy & Synchronization)
+; [AI_HINT: Mengelola Unit, Shard, Fragment dan Sinkronisasi]
+
+; Struktur Constants
+; Unit: [ID:8][FirstShard:8][Status:8][Padding:8]
+; Shard: [ID:8][NextShard:8][FirstFragment:8][Status:8]
+; Fragment: [FuncPtr:8][NextFragment:8][Status:8][Context:8]
+
+fungsi routine_init_unit
+    ; Input: rdi (ID)
+    ; Output: rax (Ptr)
+
+    push rdi
+    mov rdi, 32
+    call mem_alloc
+    pop rdi
+
+    ; Set ID [rax]
+    mov [rax], rdi
+
+    ; Zero out other fields
+    mov rdx, 0
+
+    ; First Shard [rax+8]
+    mov rbx, rax
+    add rbx, 8
+    mov [rbx], rdx
+
+    ; Status [rax+16]
+    add rbx, 8
+    mov [rbx], rdx
+
+    ret
+tutup_fungsi
+
+fungsi routine_init_shard
+    ; Input: rdi (ID)
+    ; Output: rax (Ptr)
+
+    push rdi
+    mov rdi, 32
+    call mem_alloc
+    pop rdi
+
+    ; Set ID [rax]
+    mov [rax], rdi
+
+    ; Zero out other fields
+    mov rdx, 0
+
+    ; Next Shard [rax+8]
+    mov rbx, rax
+    add rbx, 8
+    mov [rbx], rdx
+
+    ; First Fragment [rax+16]
+    add rbx, 8
+    mov [rbx], rdx
+
+    ; Status [rax+24]
+    add rbx, 8
+    mov [rbx], rdx
+
+    ret
+tutup_fungsi
+
+fungsi routine_init_fragment
+    ; Input: rdi (Function Ptr), rsi (Context Ptr)
+    ; Output: rax (Ptr)
+
+    push rdi
+    push rsi
+    mov rdi, 32
+    call mem_alloc
+    pop rsi
+    pop rdi
+
+    ; Set Func Ptr [rax]
+    mov [rax], rdi
+
+    ; Zero Next Fragment [rax+8]
+    mov rdx, 0
+    mov rbx, rax
+    add rbx, 8
+    mov [rbx], rdx
+
+    ; Zero Status [rax+16]
+    add rbx, 8
+    mov [rbx], rdx
+
+    ; Set Context [rax+24]
+    add rbx, 8
+    mov [rbx], rsi
+
+    ret
+tutup_fungsi
+
+fungsi routine_add_shard
+    ; Input: rdi (Unit Ptr), rsi (Shard Ptr)
+    ; Appends Shard to the END of Unit's Shard list
+
+    ; Check if Unit has first shard
+    mov rbx, rdi
+    add rbx, 8 ; rbx = ptr to FirstShard field
+
+    mov rdx, [rbx] ; rdx = FirstShard ptr
+
+    cmp rdx, 0
+    jika_sama
+        ; List empty, set as first
+        mov [rbx], rsi
+        ret
+    tutup_jika
+
+    ; Traverse to end
+    mov r8, rdx ; r8 = Current Shard
+
+    loop traverse_shard_loop
+        ; Check Next Shard at [r8+8]
+        mov r9, r8
+        add r9, 8
+        mov r10, [r9]
+
+        cmp r10, 0
+        jika_sama
+            ; Found end, link new shard
+            mov [r9], rsi
+            henti
+        tutup_jika
+
+        ; Advance
+        mov r8, r10
+    tutup_loop
+
+    ret
+tutup_fungsi
+
+fungsi routine_add_fragment
+    ; Input: rdi (Shard Ptr), rsi (Fragment Ptr)
+    ; Appends Fragment to the END of Shard's Fragment list
+
+    ; Check if Shard has first fragment
+    mov rbx, rdi
+    add rbx, 16 ; rbx = ptr to FirstFragment field
+
+    mov rdx, [rbx] ; rdx = FirstFragment ptr
+
+    cmp rdx, 0
+    jika_sama
+        ; List empty, set as first
+        mov [rbx], rsi
+        ret
+    tutup_jika
+
+    ; Traverse to end
+    mov r8, rdx ; r8 = Current Fragment
+
+    loop traverse_frag_loop
+        ; Check Next Fragment at [r8+8]
+        mov r9, r8
+        add r9, 8
+        mov r10, [r9]
+
+        cmp r10, 0
+        jika_sama
+            ; Found end, link new fragment
+            mov [r9], rsi
+            henti
+        tutup_jika
+
+        ; Advance
+        mov r8, r10
+    tutup_loop
+
+    ret
+tutup_fungsi
+
+fungsi routine_run_unit
+    ; Input: rdi (Unit Ptr)
+    ; Runs all Shards sequentially (Option B)
+
+    ; Get First Shard
+    mov rbx, rdi
+    add rbx, 8
+    mov r8, [rbx] ; r8 = Current Shard
+
+    loop run_shard_loop
+        cmp r8, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        ; Run Fragments in this Shard
+        ; Get First Fragment [r8+16]
+        mov r9, r8
+        add r9, 16
+        mov r10, [r9] ; r10 = Current Fragment
+
+        loop run_frag_loop
+            cmp r10, 0
+            jika_sama
+                henti
+            tutup_jika
+
+            ; Get Function Ptr [r10]
+            mov rax, [r10]
+
+            ; Get Context [r10+24]
+            mov r11, r10
+            add r11, 24
+            mov rdi, [r11] ; Pass Context as Arg1
+
+            ; Save registers
+            push r8
+            push r10
+
+            call rax
+
+            pop r10
+            pop r8
+
+            ; Next Fragment [r10+8]
+            mov r11, r10
+            add r11, 8
+            mov r10, [r11]
+        tutup_loop
+
+        ; Next Shard [r8+8]
+        mov r9, r8
+        add r9, 8
+        mov r8, [r9]
+    tutup_loop
+
+    ret
+tutup_fungsi
+
+fungsi routine_lock
+    ; Input: rdi (Ptr to 8-byte lock variable)
+
+    loop spin_retry
+        lock
+        bts [rdi], 0
+
+        ; If CF=0 (Success, was 0), we enter block.
+        ; Compiler emits 'jb' (Jump if Carry) to skip block if CF=1.
+        jika_diatas_sama
+            henti
+        tutup_jika
+
+        pause
+    tutup_loop
+
+    ret
+tutup_fungsi
+
+fungsi routine_unlock
+    ; Input: rdi (Ptr to lock variable)
+
+    ; Clear the bit 0
+    mov rdx, 0
+    mov [rdi], rdx
+
+    ret
+tutup_fungsi
