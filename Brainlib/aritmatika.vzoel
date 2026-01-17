@@ -68,10 +68,15 @@ neg.mem64           rex=W opcode=0xF7 modrm=3 ; [AI_HINT: Negasikan nilai memori
 ; Trigonometry & Floating Point (x87 FPU) - Implicit st(0)
 finit               opcode=0x9B,0xDB,0xE3 ; [AI_HINT: Inisialisasi FPU]
 fld.mem64           opcode=0xDD modrm=0   ; [AI_HINT: Load double (64-bit float) dari memori ke st(0)]
+fld.st0             opcode=0xD9,0xC0      ; [AI_HINT: Duplicate st(0)]
 fstp.mem64          opcode=0xDD modrm=3   ; [AI_HINT: Store double ke memori dan pop st(0)]
 fld1                opcode=0xD9,0xE8      ; [AI_HINT: Load konstanta 1.0 ke st(0)]
 fldz                opcode=0xD9,0xEE      ; [AI_HINT: Load konstanta 0.0 ke st(0)]
 fldpi               opcode=0xD9,0xEB      ; [AI_HINT: Load konstanta PI ke st(0)]
+fadd.mem64          opcode=0xDC modrm=0   ; [AI_HINT: Tambah st(0) dengan memori]
+fsub.mem64          opcode=0xDC modrm=4   ; [AI_HINT: Kurang st(0) dengan memori]
+fmul.mem64          opcode=0xDC modrm=1   ; [AI_HINT: Kali st(0) dengan memori]
+fdiv.mem64          opcode=0xDC modrm=6   ; [AI_HINT: Bagi st(0) dengan memori]
 faddp               opcode=0xDE,0xC1      ; [AI_HINT: Tambah st(1) = st(1) + st(0), pop]
 fsubp               opcode=0xDE,0xE9      ; [AI_HINT: Kurang st(1) = st(1) - st(0), pop]
 fmulp               opcode=0xDE,0xC9      ; [AI_HINT: Kali st(1) = st(1) * st(0), pop]
@@ -80,3 +85,17 @@ fsin                opcode=0xD9,0xFE      ; [AI_HINT: Hitung Sinus dari st(0) ->
 fcos                opcode=0xD9,0xFF      ; [AI_HINT: Hitung Cosinus dari st(0) -> st(0)]
 fptan               opcode=0xD9,0xF2      ; [AI_HINT: Hitung Tangent dari st(0) -> st(1):st(0) (1.0 : tan)]
 fsqrt               opcode=0xD9,0xFA      ; [AI_HINT: Hitung Akar Kuadrat dari st(0)]
+
+; Modern SSE/AVX (Single Precision - XMM)
+; Note: We use .r64 suffix because parser treats all registers (including XMM) as r64 class
+movss.r64.mem       opcode=0xF3,0x0F,0x10 modrm=reg,mem ; [AI_HINT: Load float 32-bit dari mem ke XMM]
+movss.mem.r64       opcode=0xF3,0x0F,0x11 modrm=mem,reg ; [AI_HINT: Store float 32-bit dari XMM ke mem]
+movss.r64.r64       opcode=0xF3,0x0F,0x10 modrm=dst_reg,src_reg ; [AI_HINT: Move float 32-bit antar XMM]
+addss.r64.r64       opcode=0xF3,0x0F,0x58 modrm=dst_reg,src_reg ; [AI_HINT: Add float (xmm1 += xmm2)]
+addss.r64.mem       opcode=0xF3,0x0F,0x58 modrm=reg,mem         ; [AI_HINT: Add float mem to xmm]
+subss.r64.r64       opcode=0xF3,0x0F,0x5C modrm=dst_reg,src_reg ; [AI_HINT: Sub float]
+mulss.r64.r64       opcode=0xF3,0x0F,0x59 modrm=dst_reg,src_reg ; [AI_HINT: Mul float]
+divss.r64.r64       opcode=0xF3,0x0F,0x5E modrm=dst_reg,src_reg ; [AI_HINT: Div float]
+ucomiss.r64.r64     opcode=0x0F,0x2E modrm=dst_reg,src_reg      ; [AI_HINT: Compare float unordered]
+cvtsi2ss.r64.r64    rex=W opcode=0xF3,0x0F,0x2A modrm=dst_reg,src_reg ; [AI_HINT: Convert Int64 to Float32]
+cvtss2si.r64.r64    rex=W opcode=0xF3,0x0F,0x2D modrm=dst_reg,src_reg ; [AI_HINT: Convert Float32 to Int64]

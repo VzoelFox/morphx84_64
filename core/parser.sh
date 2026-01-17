@@ -32,6 +32,24 @@ REGISTERS["r13"]=13
 REGISTERS["r14"]=14
 REGISTERS["r15"]=15
 
+# SIMD Registers (Mapped to 0-15 for ModRM encoding)
+REGISTERS["xmm0"]=0
+REGISTERS["xmm1"]=1
+REGISTERS["xmm2"]=2
+REGISTERS["xmm3"]=3
+REGISTERS["xmm4"]=4
+REGISTERS["xmm5"]=5
+REGISTERS["xmm6"]=6
+REGISTERS["xmm7"]=7
+REGISTERS["xmm8"]=8
+REGISTERS["xmm9"]=9
+REGISTERS["xmm10"]=10
+REGISTERS["xmm11"]=11
+REGISTERS["xmm12"]=12
+REGISTERS["xmm13"]=13
+REGISTERS["xmm14"]=14
+REGISTERS["xmm15"]=15
+
 # Control Flow Stack
 declare -a STACK_TYPE
 declare -a STACK_ID
@@ -489,6 +507,9 @@ compile_line() {
         if [[ "$modrm_mode" == "reg,reg" ]]; then
              r_rm=$(get_reg_id "$arg1")
              r_reg=$(get_reg_id "$arg2")
+        elif [[ "$modrm_mode" == "dst_reg,src_reg" ]]; then
+             r_reg=$(get_reg_id "$arg1")
+             r_rm=$(get_reg_id "$arg2")
         elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
              if is_mem_operand "$arg1"; then
                  r_rm=$(get_mem_reg_id "$arg1")
