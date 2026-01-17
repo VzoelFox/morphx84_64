@@ -1,0 +1,1105 @@
+
+/tmp/morph_disasm_1042506.bin:     file format binary
+
+
+Disassembly of section .data:
+
+0000000000400078 <.data>:
+  400078:	e8 17 0d 00 00       	call   0x400d94
+  40007d:	48 c7 c0 3c 00 00 00 	mov    rax,0x3c
+  400084:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  40008b:	0f 05                	syscall
+  40008d:	48 89 f8             	mov    rax,rdi
+  400090:	48 01 f0             	add    rax,rsi
+  400093:	50                   	push   rax
+  400094:	48 89 f8             	mov    rax,rdi
+  400097:	48 29 f0             	sub    rax,rsi
+  40009a:	58                   	pop    rax
+  40009b:	48 89 f8             	mov    rax,rdi
+  40009e:	48 0f af f0          	imul   rsi,rax
+  4000a2:	48 89 f8             	mov    rax,rdi
+  4000a5:	48 99                	cqo
+  4000a7:	48 f7 fe             	idiv   rsi
+  4000aa:	48 89 d0             	mov    rax,rdx
+  4000ad:	48 89 f8             	mov    rax,rdi
+  4000b0:	48 21 f0             	and    rax,rsi
+  4000b3:	48 89 f8             	mov    rax,rdi
+  4000b6:	48 09 f0             	or     rax,rsi
+  4000b9:	48 89 f8             	mov    rax,rdi
+  4000bc:	48 c1 e0 01          	shl    rax,0x1
+  4000c0:	48 89 f8             	mov    rax,rdi
+  4000c3:	48 c1 e8 01          	shr    rax,0x1
+  4000c7:	c3                   	ret
+  4000c8:	c3                   	ret
+  4000c9:	48 0f bc f8          	bsf    rdi,rax
+  4000cd:	0f 85 08 00 00 00    	jne    0x4000db <.L_FALSE_1>
+  4000d3:	48 c7 c0 ff ff ff ff 	mov    rax,0xffffffffffffffff
+  4000da:	c3                   	ret
+  4000db <.L_FALSE_1>:	48                   	rex.W
+  4000dc:	f3 0f b8 f3          	popcnt esi,ebx
+  4000e0:	48 89 f8             	mov    rax,rdi
+  4000e3:	48 21 f0             	and    rax,rsi
+  4000e6:	48 89 f9             	mov    rcx,rdi
+  4000e9:	48 31 f1             	xor    rcx,rsi
+  4000ec:	48 09 c8             	or     rax,rcx
+  4000ef:	c3                   	ret
+  4000f0:	c3                   	ret
+  4000f1:	48 0f ab f7          	bts    rdi,rsi
+  4000f5:	48 0f a3 f7          	bt     rdi,rsi
+  4000f9:	c3                   	ret
+  4000fa:	c3                   	ret
+  4000fb:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  400102:	0f 05                	syscall
+  400104:	c3                   	ret
+  400105:	c3                   	ret
+  400106:	48 c7 c0 01 00 00 00 	mov    rax,0x1
+  40010d:	0f 05                	syscall
+  40010f:	c3                   	ret
+  400110:	c3                   	ret
+  400111:	48 c7 c0 02 00 00 00 	mov    rax,0x2
+  400118:	0f 05                	syscall
+  40011a:	c3                   	ret
+  40011b:	c3                   	ret
+  40011c:	48 c7 c0 03 00 00 00 	mov    rax,0x3
+  400123:	0f 05                	syscall
+  400125:	c3                   	ret
+  400126:	c3                   	ret
+  400127:	48 c7 c0 08 00 00 00 	mov    rax,0x8
+  40012e:	0f 05                	syscall
+  400130:	c3                   	ret
+  400131:	c3                   	ret
+  400132:	48 c7 c0 09 00 00 00 	mov    rax,0x9
+  400139:	0f 05                	syscall
+  40013b:	c3                   	ret
+  40013c:	c3                   	ret
+  40013d:	48 c7 c0 0c 00 00 00 	mov    rax,0xc
+  400144:	0f 05                	syscall
+  400146:	c3                   	ret
+  400147:	c3                   	ret
+  400148:	48 c7 c0 0d 00 00 00 	mov    rax,0xd
+  40014f:	0f 05                	syscall
+  400151:	c3                   	ret
+  400152:	c3                   	ret
+  400153:	48 c7 c0 0f 00 00 00 	mov    rax,0xf
+  40015a:	0f 05                	syscall
+  40015c:	c3                   	ret
+  40015d:	c3                   	ret
+  40015e:	48 c7 c0 26 00 00 00 	mov    rax,0x26
+  400165:	0f 05                	syscall
+  400167:	c3                   	ret
+  400168:	c3                   	ret
+  400169:	48 c7 c0 3c 00 00 00 	mov    rax,0x3c
+  400170:	0f 05                	syscall
+  400172:	c3                   	ret
+  400173:	c3                   	ret
+  400174:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  40017b:	e8 bd ff ff ff       	call   0x40013d
+  400180:	49 89 c7             	mov    r15,rax
+  400183:	c3                   	ret
+  400184:	c3                   	ret
+  400185:	49 89 fa             	mov    r10,rdi
+  400188:	49 83 c2 10          	add    r10,0x10
+  40018c:	49 8b 02             	mov    rax,QWORD PTR [r10]
+  40018f:	48 c7 c2 34 31 ac 01 	mov    rdx,0x1ac3134
+  400196:	48 39 d0             	cmp    rax,rdx
+  400199:	0f 84 0c 00 00 00    	je     0x4001ab <.L_FALSE_2>
+  40019f:	48 c7 c7 9a 02 00 00 	mov    rdi,0x29a
+  4001a6:	e8 be ff ff ff       	call   0x400169
+  4001ab <.L_FALSE_2>:	c3                   	ret
+  4001ac:	c3                   	ret
+  4001ad:	48 83 c7 0f          	add    rdi,0xf
+  4001b1:	48 83 e7 f0          	and    rdi,0xfffffffffffffff0
+  4001b5:	48 89 fe             	mov    rsi,rdi
+  4001b8:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  4001bf:	e8 79 ff ff ff       	call   0x40013d
+  4001c4:	48 89 c3             	mov    rbx,rax
+  4001c7:	4d 89 f8             	mov    r8,r15
+  4001ca <.L_LOOP_START_3>:	49 39 d8             	cmp    r8,rbx
+  4001cd:	0f 85 05 00 00 00    	jne    0x4001d8 <.L_FALSE_4>
+  4001d3:	e9 5a 00 00 00       	jmp    0x400232 <.L_LOOP_END_3>
+  4001d8 <.L_FALSE_4>:	0f 86 05 00 00 00    	jbe    0x4001e3 <.L_FALSE_5>
+  4001de:	e9 4f 00 00 00       	jmp    0x400232 <.L_LOOP_END_3>
+  4001e3 <.L_FALSE_5>:	57                   	push   rdi
+  4001e4:	4c 89 c7             	mov    rdi,r8
+  4001e7:	e8 99 ff ff ff       	call   0x400185
+  4001ec:	5f                   	pop    rdi
+  4001ed:	49 8b 08             	mov    rcx,QWORD PTR [r8]
+  4001f0:	4d 89 c1             	mov    r9,r8
+  4001f3:	49 83 c1 08          	add    r9,0x8
+  4001f7:	49 8b 11             	mov    rdx,QWORD PTR [r9]
+  4001fa:	48 83 fa 00          	cmp    rdx,0x0
+  4001fe:	0f 85 22 00 00 00    	jne    0x400226 <.L_FALSE_6> <.L_FALSE_7>
+  400204:	48 39 f1             	cmp    rcx,rsi
+  400207:	0f 82 19 00 00 00    	jb     0x400226 <.L_FALSE_6> <.L_FALSE_7>
+  40020d:	49 c7 c3 01 00 00 00 	mov    r11,0x1
+  400214:	4d 89 c2             	mov    r10,r8
+  400217:	49 83 c2 08          	add    r10,0x8
+  40021b:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  40021e:	4c 89 c0             	mov    rax,r8
+  400221:	48 83 c0 20          	add    rax,0x20
+  400225:	c3                   	ret
+  400226 <.L_FALSE_7>:	49 83 c0 20          	add    r8,0x20
+  40022a:	49 01 c8             	add    r8,rcx
+  40022d:	e9 98 ff ff ff       	jmp    0x4001ca <.L_LOOP_START_3>
+  400232 <.L_LOOP_END_3>:	48 89 df             	mov    rdi,rbx
+  400235:	48 83 c7 20          	add    rdi,0x20
+  400239:	48 01 f7             	add    rdi,rsi
+  40023c:	e8 fc fe ff ff       	call   0x40013d
+  400241:	48 89 33             	mov    QWORD PTR [rbx],rsi
+  400244:	49 c7 c3 01 00 00 00 	mov    r11,0x1
+  40024b:	49 89 da             	mov    r10,rbx
+  40024e:	49 83 c2 08          	add    r10,0x8
+  400252:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  400255:	49 c7 c3 34 31 ac 01 	mov    r11,0x1ac3134
+  40025c:	49 89 da             	mov    r10,rbx
+  40025f:	49 83 c2 10          	add    r10,0x10
+  400263:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  400266:	48 89 d8             	mov    rax,rbx
+  400269:	48 83 c0 20          	add    rax,0x20
+  40026d:	c3                   	ret
+  40026e:	c3                   	ret
+  40026f:	48 83 ef 20          	sub    rdi,0x20
+  400273:	57                   	push   rdi
+  400274:	e8 0c ff ff ff       	call   0x400185
+  400279:	5f                   	pop    rdi
+  40027a:	49 c7 c3 00 00 00 00 	mov    r11,0x0
+  400281:	49 89 fa             	mov    r10,rdi
+  400284:	49 83 c2 08          	add    r10,0x8
+  400288:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  40028b:	c3                   	ret
+  40028c:	c3                   	ret
+  40028d:	57                   	push   rdi
+  40028e:	48 c7 c6 41 02 00 00 	mov    rsi,0x241
+  400295:	48 c7 c2 b6 01 00 00 	mov    rdx,0x1b6
+  40029c:	e8 70 fe ff ff       	call   0x400111
+  4002a1:	48 83 f8 00          	cmp    rax,0x0
+  4002a5:	0f 89 02 00 00 00    	jns    0x4002ad <.L_FALSE_8>
+  4002ab:	5f                   	pop    rdi
+  4002ac:	c3                   	ret
+  4002ad <.L_FALSE_8>:	49 89 c0             	mov    r8,rax
+  4002b0:	48 b8 4d 4f 52 50 48 	movabs rax,0x504e534850524f4d
+  4002b7:	53 4e 50
+  4002ba:	50                   	push   rax
+  4002bb:	41 50                	push   r8
+  4002bd:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  4002c4:	e8 74 fe ff ff       	call   0x40013d
+  4002c9:	41 58                	pop    r8
+  4002cb:	48 89 c3             	mov    rbx,rax
+  4002ce:	4c 29 f8             	sub    rax,r15
+  4002d1:	48 89 c1             	mov    rcx,rax
+  4002d4:	51                   	push   rcx
+  4002d5:	4c 89 c7             	mov    rdi,r8
+  4002d8:	48 89 e6             	mov    rsi,rsp
+  4002db:	48 c7 c2 10 00 00 00 	mov    rdx,0x10
+  4002e2:	e8 1f fe ff ff       	call   0x400106
+  4002e7:	58                   	pop    rax
+  4002e8:	58                   	pop    rax
+  4002e9:	41 50                	push   r8
+  4002eb:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  4002f2:	e8 46 fe ff ff       	call   0x40013d
+  4002f7:	41 58                	pop    r8
+  4002f9:	4c 29 f8             	sub    rax,r15
+  4002fc:	4c 89 c7             	mov    rdi,r8
+  4002ff:	4c 89 fe             	mov    rsi,r15
+  400302:	48 89 c2             	mov    rdx,rax
+  400305:	e8 fc fd ff ff       	call   0x400106
+  40030a:	4c 89 c7             	mov    rdi,r8
+  40030d:	e8 0a fe ff ff       	call   0x40011c
+  400312:	5f                   	pop    rdi
+  400313:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  40031a:	c3                   	ret
+  40031b:	c3                   	ret
+  40031c:	57                   	push   rdi
+  40031d:	48 c7 c6 00 00 00 00 	mov    rsi,0x0
+  400324:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  40032b:	e8 e1 fd ff ff       	call   0x400111
+  400330:	48 83 f8 00          	cmp    rax,0x0
+  400334:	0f 89 02 00 00 00    	jns    0x40033c <.L_FALSE_9>
+  40033a:	5f                   	pop    rdi
+  40033b:	c3                   	ret
+  40033c <.L_FALSE_9>:	49 89 c0             	mov    r8,rax
+  40033f:	50                   	push   rax
+  400340:	50                   	push   rax
+  400341:	4c 89 c7             	mov    rdi,r8
+  400344:	48 89 e6             	mov    rsi,rsp
+  400347:	48 c7 c2 10 00 00 00 	mov    rdx,0x10
+  40034e:	e8 a8 fd ff ff       	call   0x4000fb
+  400353:	59                   	pop    rcx
+  400354:	58                   	pop    rax
+  400355:	48 ba 4d 4f 52 50 48 	movabs rdx,0x504e534850524f4d
+  40035c:	53 4e 50
+  40035f:	48 39 d0             	cmp    rax,rdx
+  400362:	0f 84 11 00 00 00    	je     0x400379 <.L_FALSE_10>
+  400368:	4c 89 c7             	mov    rdi,r8
+  40036b:	e8 ac fd ff ff       	call   0x40011c
+  400370:	5f                   	pop    rdi
+  400371:	48 c7 c0 ff ff ff ff 	mov    rax,0xffffffffffffffff
+  400378:	c3                   	ret
+  400379 <.L_FALSE_10>:	4c 89 ff             	mov    rdi,r15
+  40037c:	48 01 cf             	add    rdi,rcx
+  40037f:	51                   	push   rcx
+  400380:	41 50                	push   r8
+  400382:	e8 b6 fd ff ff       	call   0x40013d
+  400387:	41 58                	pop    r8
+  400389:	59                   	pop    rcx
+  40038a:	4c 89 c7             	mov    rdi,r8
+  40038d:	4c 89 fe             	mov    rsi,r15
+  400390:	48 89 ca             	mov    rdx,rcx
+  400393:	e8 63 fd ff ff       	call   0x4000fb
+  400398:	4c 89 c7             	mov    rdi,r8
+  40039b:	e8 7c fd ff ff       	call   0x40011c
+  4003a0:	5f                   	pop    rdi
+  4003a1:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  4003a8:	c3                   	ret
+  4003a9:	c3                   	ret
+  4003aa:	57                   	push   rdi
+  4003ab:	56                   	push   rsi
+  4003ac:	52                   	push   rdx
+  4003ad:	50                   	push   rax
+  4003ae:	51                   	push   rcx
+  4003af:	41 50                	push   r8
+  4003b1:	41 51                	push   r9
+  4003b3:	41 52                	push   r10
+  4003b5:	41 53                	push   r11
+  4003b7:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  4003be:	e8 7a fd ff ff       	call   0x40013d
+  4003c3:	48 89 c3             	mov    rbx,rax
+  4003c6:	4c 29 fb             	sub    rbx,r15
+  4003c9:	48 c7 c1 00 00 a0 00 	mov    rcx,0xa00000
+  4003d0:	48 39 cb             	cmp    rbx,rcx
+  4003d3:	0f 86 28 00 00 00    	jbe    0x400401 <.L_FALSE_11>
+  4003d9:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  4003e0:	50                   	push   rax
+  4003e1:	48 b8 64 75 6d 70 2e 	movabs rax,0x6e69622e706d7564
+  4003e8:	62 69 6e
+  4003eb:	50                   	push   rax
+  4003ec:	48 89 e7             	mov    rdi,rsp
+  4003ef:	e8 99 fe ff ff       	call   0x40028d
+  4003f4:	58                   	pop    rax
+  4003f5:	48 c7 c7 e7 03 00 00 	mov    rdi,0x3e7
+  4003fc:	e8 68 fd ff ff       	call   0x400169
+  400401 <.L_FALSE_11>:	41 5b                	pop    r11
+  400403:	41 5a                	pop    r10
+  400405:	41 59                	pop    r9
+  400407:	41 58                	pop    r8
+  400409:	59                   	pop    rcx
+  40040a:	58                   	pop    rax
+  40040b:	5a                   	pop    rdx
+  40040c:	5e                   	pop    rsi
+  40040d:	5f                   	pop    rdi
+  40040e:	c3                   	ret
+  40040f:	c3                   	ret
+  400410:	48 c7 c7 a0 00 00 00 	mov    rdi,0xa0
+  400417:	e8 91 fd ff ff       	call   0x4001ad
+  40041c:	48 89 c3             	mov    rbx,rax
+  40041f:	57                   	push   rdi
+  400420:	50                   	push   rax
+  400421:	51                   	push   rcx
+  400422:	48 89 df             	mov    rdi,rbx
+  400425:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  40042c:	48 c7 c1 a0 00 00 00 	mov    rcx,0xa0
+  400433:	fc                   	cld
+  400434:	f3 59                	repz pop rcx
+  400436:	58                   	pop    rax
+  400437:	5f                   	pop    rdi
+  400438:	48 c7 c0 aa 03 40 00 	mov    rax,0x4003aa
+  40043f:	48 89 03             	mov    QWORD PTR [rbx],rax
+  400442:	48 c7 c0 00 00 00 04 	mov    rax,0x4000000
+  400449:	49 89 da             	mov    r10,rbx
+  40044c:	49 83 c2 08          	add    r10,0x8
+  400450:	49 89 02             	mov    QWORD PTR [r10],rax
+  400453:	48 c7 c0 53 01 40 00 	mov    rax,0x400153
+  40045a:	49 89 da             	mov    r10,rbx
+  40045d:	49 83 c2 10          	add    r10,0x10
+  400461:	49 89 02             	mov    QWORD PTR [r10],rax
+  400464:	48 c7 c7 0e 00 00 00 	mov    rdi,0xe
+  40046b:	48 89 de             	mov    rsi,rbx
+  40046e:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400475:	49 c7 c2 08 00 00 00 	mov    r10,0x8
+  40047c:	e8 c7 fc ff ff       	call   0x400148
+  400481:	48 c7 c7 20 00 00 00 	mov    rdi,0x20
+  400488:	e8 20 fd ff ff       	call   0x4001ad
+  40048d:	48 89 c3             	mov    rbx,rax
+  400490:	49 c7 c3 00 00 00 00 	mov    r11,0x0
+  400497:	4c 89 1b             	mov    QWORD PTR [rbx],r11
+  40049a:	49 c7 c3 10 27 00 00 	mov    r11,0x2710
+  4004a1:	49 89 da             	mov    r10,rbx
+  4004a4:	49 83 c2 08          	add    r10,0x8
+  4004a8:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  4004ab:	49 c7 c3 00 00 00 00 	mov    r11,0x0
+  4004b2:	49 89 da             	mov    r10,rbx
+  4004b5:	49 83 c2 10          	add    r10,0x10
+  4004b9:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  4004bc:	49 c7 c3 10 27 00 00 	mov    r11,0x2710
+  4004c3:	49 89 da             	mov    r10,rbx
+  4004c6:	49 83 c2 18          	add    r10,0x18
+  4004ca:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  4004cd:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  4004d4:	48 89 de             	mov    rsi,rbx
+  4004d7:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  4004de:	e8 7b fc ff ff       	call   0x40015e
+  4004e3:	c3                   	ret
+  4004e4:	c3                   	ret
+  4004e5:	57                   	push   rdi
+  4004e6:	48 c7 c7 20 00 00 00 	mov    rdi,0x20
+  4004ed:	e8 bb fc ff ff       	call   0x4001ad
+  4004f2:	5f                   	pop    rdi
+  4004f3:	48 89 38             	mov    QWORD PTR [rax],rdi
+  4004f6:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  4004fd:	48 89 c3             	mov    rbx,rax
+  400500:	48 83 c3 08          	add    rbx,0x8
+  400504:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  400507:	48 83 c3 08          	add    rbx,0x8
+  40050b:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  40050e:	c3                   	ret
+  40050f:	c3                   	ret
+  400510:	57                   	push   rdi
+  400511:	48 c7 c7 20 00 00 00 	mov    rdi,0x20
+  400518:	e8 90 fc ff ff       	call   0x4001ad
+  40051d:	5f                   	pop    rdi
+  40051e:	48 89 38             	mov    QWORD PTR [rax],rdi
+  400521:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400528:	48 89 c3             	mov    rbx,rax
+  40052b:	48 83 c3 08          	add    rbx,0x8
+  40052f:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  400532:	48 83 c3 08          	add    rbx,0x8
+  400536:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  400539:	48 83 c3 08          	add    rbx,0x8
+  40053d:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  400540:	c3                   	ret
+  400541:	c3                   	ret
+  400542:	57                   	push   rdi
+  400543:	56                   	push   rsi
+  400544:	48 c7 c7 20 00 00 00 	mov    rdi,0x20
+  40054b:	e8 5d fc ff ff       	call   0x4001ad
+  400550:	5e                   	pop    rsi
+  400551:	5f                   	pop    rdi
+  400552:	48 89 38             	mov    QWORD PTR [rax],rdi
+  400555:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  40055c:	48 89 c3             	mov    rbx,rax
+  40055f:	48 83 c3 08          	add    rbx,0x8
+  400563:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  400566:	48 83 c3 08          	add    rbx,0x8
+  40056a:	48 89 13             	mov    QWORD PTR [rbx],rdx
+  40056d:	48 83 c3 08          	add    rbx,0x8
+  400571:	48 89 33             	mov    QWORD PTR [rbx],rsi
+  400574:	c3                   	ret
+  400575:	c3                   	ret
+  400576:	48 89 fb             	mov    rbx,rdi
+  400579:	48 83 c3 08          	add    rbx,0x8
+  40057d:	48 8b 13             	mov    rdx,QWORD PTR [rbx]
+  400580:	48 83 fa 00          	cmp    rdx,0x0
+  400584:	0f 85 04 00 00 00    	jne    0x40058e <.L_FALSE_12>
+  40058a:	48 89 33             	mov    QWORD PTR [rbx],rsi
+  40058d:	c3                   	ret
+  40058e <.L_FALSE_12>:	49 89 d0             	mov    r8,rdx
+  400591 <.L_LOOP_START_13>:	4d 89 c1             	mov    r9,r8
+  400594:	49 83 c1 08          	add    r9,0x8
+  400598:	4d 8b 11             	mov    r10,QWORD PTR [r9]
+  40059b:	49 83 fa 00          	cmp    r10,0x0
+  40059f:	0f 85 08 00 00 00    	jne    0x4005ad <.L_FALSE_14>
+  4005a5:	49 89 31             	mov    QWORD PTR [r9],rsi
+  4005a8:	e9 08 00 00 00       	jmp    0x4005b5 <.L_LOOP_END_13>
+  4005ad <.L_FALSE_14>:	4d 89 d0             	mov    r8,r10
+  4005b0:	e9 dc ff ff ff       	jmp    0x400591 <.L_LOOP_START_13>
+  4005b5 <.L_LOOP_END_13>:	c3                   	ret
+  4005b6:	c3                   	ret
+  4005b7:	48 89 fb             	mov    rbx,rdi
+  4005ba:	48 83 c3 10          	add    rbx,0x10
+  4005be:	48 8b 13             	mov    rdx,QWORD PTR [rbx]
+  4005c1:	48 83 fa 00          	cmp    rdx,0x0
+  4005c5:	0f 85 04 00 00 00    	jne    0x4005cf <.L_FALSE_15>
+  4005cb:	48 89 33             	mov    QWORD PTR [rbx],rsi
+  4005ce:	c3                   	ret
+  4005cf <.L_FALSE_15>:	49 89 d0             	mov    r8,rdx
+  4005d2 <.L_LOOP_START_16>:	4d 89 c1             	mov    r9,r8
+  4005d5:	49 83 c1 08          	add    r9,0x8
+  4005d9:	4d 8b 11             	mov    r10,QWORD PTR [r9]
+  4005dc:	49 83 fa 00          	cmp    r10,0x0
+  4005e0:	0f 85 08 00 00 00    	jne    0x4005ee <.L_FALSE_17>
+  4005e6:	49 89 31             	mov    QWORD PTR [r9],rsi
+  4005e9:	e9 08 00 00 00       	jmp    0x4005f6 <.L_LOOP_END_16>
+  4005ee <.L_FALSE_17>:	4d 89 d0             	mov    r8,r10
+  4005f1:	e9 dc ff ff ff       	jmp    0x4005d2 <.L_LOOP_START_16>
+  4005f6 <.L_LOOP_END_16>:	c3                   	ret
+  4005f7:	c3                   	ret
+  4005f8:	48 89 fb             	mov    rbx,rdi
+  4005fb:	48 83 c3 08          	add    rbx,0x8
+  4005ff:	4c 8b 03             	mov    r8,QWORD PTR [rbx]
+  400602 <.L_LOOP_START_18>:	49 83 f8 00          	cmp    r8,0x0
+  400606:	0f 85 05 00 00 00    	jne    0x400611 <.L_FALSE_19>
+  40060c:	e9 4f 00 00 00       	jmp    0x400660 <.L_LOOP_END_18>
+  400611 <.L_FALSE_19>:	4d 89 c1             	mov    r9,r8
+  400614:	49 83 c1 10          	add    r9,0x10
+  400618:	4d 8b 11             	mov    r10,QWORD PTR [r9]
+  40061b <.L_LOOP_START_20>:	49 83 fa 00          	cmp    r10,0x0
+  40061f:	0f 85 05 00 00 00    	jne    0x40062a <.L_FALSE_21>
+  400625:	e9 27 00 00 00       	jmp    0x400651 <.L_LOOP_END_20>
+  40062a <.L_FALSE_21>:	49 8b 02             	mov    rax,QWORD PTR [r10]
+  40062d:	4d 89 d3             	mov    r11,r10
+  400630:	49 83 c3 18          	add    r11,0x18
+  400634:	49 8b 3b             	mov    rdi,QWORD PTR [r11]
+  400637:	41 50                	push   r8
+  400639:	41 52                	push   r10
+  40063b:	48 ff d0             	rex.W call rax
+  40063e:	41 5a                	pop    r10
+  400640:	41 58                	pop    r8
+  400642:	4d 89 d3             	mov    r11,r10
+  400645:	49 83 c3 08          	add    r11,0x8
+  400649:	4d 8b 13             	mov    r10,QWORD PTR [r11]
+  40064c:	e9 ca ff ff ff       	jmp    0x40061b <.L_LOOP_START_20>
+  400651 <.L_LOOP_END_20>:	4d 89 c1             	mov    r9,r8
+  400654:	49 83 c1 08          	add    r9,0x8
+  400658:	4d 8b 01             	mov    r8,QWORD PTR [r9]
+  40065b:	e9 a2 ff ff ff       	jmp    0x400602 <.L_LOOP_START_18>
+  400660 <.L_LOOP_END_18>:	c3                   	ret
+  400661:	c3                   	ret
+  400662 <.L_LOOP_START_22>:	f0 48 0f ba 2f 00    	lock bts QWORD PTR [rdi],0x0
+  400668:	0f 82 05 00 00 00    	jb     0x400673 <.L_FALSE_23>
+  40066e:	e9 07 00 00 00       	jmp    0x40067a <.L_LOOP_END_22>
+  400673 <.L_FALSE_23>:	f3 90                	pause
+  400675:	e9 e8 ff ff ff       	jmp    0x400662 <.L_LOOP_START_22>
+  40067a <.L_LOOP_END_22>:	c3                   	ret
+  40067b:	c3                   	ret
+  40067c:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400683:	48 89 17             	mov    QWORD PTR [rdi],rdx
+  400686:	c3                   	ret
+  400687:	c3                   	ret
+  400688:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  40068f <.L_LOOP_START_24>:	48 89 fb             	mov    rbx,rdi
+  400692:	48 01 c3             	add    rbx,rax
+  400695:	48 8b 13             	mov    rdx,QWORD PTR [rbx]
+  400698:	48 81 e2 ff 00 00 00 	and    rdx,0xff
+  40069f:	48 83 fa 00          	cmp    rdx,0x0
+  4006a3:	0f 85 01 00 00 00    	jne    0x4006aa <.L_FALSE_25>
+  4006a9:	c3                   	ret
+  4006aa <.L_FALSE_25>:	48 ff c0             	inc    rax
+  4006ad:	e9 dd ff ff ff       	jmp    0x40068f <.L_LOOP_START_24>
+  4006b2 <.L_LOOP_END_24>:	c3                   	ret
+  4006b3:	c3                   	ret
+  4006b4:	53                   	push   rbx
+  4006b5:	56                   	push   rsi
+  4006b6:	52                   	push   rdx
+  4006b7:	51                   	push   rcx
+  4006b8:	41 53                	push   r11
+  4006ba:	e8 c9 ff ff ff       	call   0x400688
+  4006bf:	48 89 c2             	mov    rdx,rax
+  4006c2:	48 89 fe             	mov    rsi,rdi
+  4006c5:	48 c7 c7 01 00 00 00 	mov    rdi,0x1
+  4006cc:	48 c7 c0 01 00 00 00 	mov    rax,0x1
+  4006d3:	0f 05                	syscall
+  4006d5:	41 5b                	pop    r11
+  4006d7:	59                   	pop    rcx
+  4006d8:	5a                   	pop    rdx
+  4006d9:	5e                   	pop    rsi
+  4006da:	5b                   	pop    rbx
+  4006db:	c3                   	ret
+  4006dc:	c3                   	ret
+  4006dd:	56                   	push   rsi
+  4006de:	52                   	push   rdx
+  4006df:	57                   	push   rdi
+  4006e0:	51                   	push   rcx
+  4006e1:	41 53                	push   r11
+  4006e3:	50                   	push   rax
+  4006e4:	48 89 e6             	mov    rsi,rsp
+  4006e7:	48 c7 c2 01 00 00 00 	mov    rdx,0x1
+  4006ee:	48 c7 c7 01 00 00 00 	mov    rdi,0x1
+  4006f5:	48 c7 c0 01 00 00 00 	mov    rax,0x1
+  4006fc:	0f 05                	syscall
+  4006fe:	58                   	pop    rax
+  4006ff:	41 5b                	pop    r11
+  400701:	59                   	pop    rcx
+  400702:	5f                   	pop    rdi
+  400703:	5a                   	pop    rdx
+  400704:	5e                   	pop    rsi
+  400705:	c3                   	ret
+  400706:	c3                   	ret
+  400707:	48 c7 c0 0a 00 00 00 	mov    rax,0xa
+  40070e:	e8 ca ff ff ff       	call   0x4006dd
+  400713:	c3                   	ret
+  400714:	c3                   	ret
+  400715:	53                   	push   rbx
+  400716:	51                   	push   rcx
+  400717:	52                   	push   rdx
+  400718:	48 c7 c1 3c 00 00 00 	mov    rcx,0x3c
+  40071f <.L_LOOP_START_26>:	48 89 fb             	mov    rbx,rdi
+  400722:	48 89 ca             	mov    rdx,rcx
+  400725:	48 d3 eb             	shr    rbx,cl
+  400728:	48 83 e3 0f          	and    rbx,0xf
+  40072c:	48 83 fb 09          	cmp    rbx,0x9
+  400730:	0f 86 09 00 00 00    	jbe    0x40073f <.L_FALSE_27>
+  400736:	48 83 c3 37          	add    rbx,0x37
+  40073a:	e9 04 00 00 00       	jmp    0x400743 <.L_END_27>
+  40073f <.L_FALSE_27>:	48 83 c3 30          	add    rbx,0x30
+  400743 <.L_END_27>:	48 89 d8             	mov    rax,rbx
+  400746:	e8 92 ff ff ff       	call   0x4006dd
+  40074b:	48 83 e9 04          	sub    rcx,0x4
+  40074f:	48 83 f9 3c          	cmp    rcx,0x3c
+  400753:	0f 86 05 00 00 00    	jbe    0x40075e <.L_FALSE_28>
+  400759:	e9 05 00 00 00       	jmp    0x400763 <.L_LOOP_END_26>
+  40075e <.L_FALSE_28>:	e9 bc ff ff ff       	jmp    0x40071f <.L_LOOP_START_26>
+  400763 <.L_LOOP_END_26>:	5a                   	pop    rdx
+  400764:	59                   	pop    rcx
+  400765:	5b                   	pop    rbx
+  400766:	c3                   	ret
+  400767:	c3                   	ret
+  400768:	53                   	push   rbx
+  400769:	52                   	push   rdx
+  40076a:	51                   	push   rcx
+  40076b:	48 b8 00 00 00 00 00 	movabs rax,0x8000000000000000
+  400772:	00 00 80
+  400775:	48 39 c7             	cmp    rdi,rax
+  400778:	0f 85 df 00 00 00    	jne    0x40085d <.L_FALSE_29>
+  40077e:	48 c7 c0 2d 00 00 00 	mov    rax,0x2d
+  400785:	e8 53 ff ff ff       	call   0x4006dd
+  40078a:	48 c7 c0 39 00 00 00 	mov    rax,0x39
+  400791:	e8 47 ff ff ff       	call   0x4006dd
+  400796:	48 c7 c0 32 00 00 00 	mov    rax,0x32
+  40079d:	e8 3b ff ff ff       	call   0x4006dd
+  4007a2:	e8 36 ff ff ff       	call   0x4006dd
+  4007a7:	48 c7 c0 33 00 00 00 	mov    rax,0x33
+  4007ae:	e8 2a ff ff ff       	call   0x4006dd
+  4007b3:	e8 25 ff ff ff       	call   0x4006dd
+  4007b8:	48 c7 c0 37 00 00 00 	mov    rax,0x37
+  4007bf:	e8 19 ff ff ff       	call   0x4006dd
+  4007c4:	48 c7 c0 32 00 00 00 	mov    rax,0x32
+  4007cb:	e8 0d ff ff ff       	call   0x4006dd
+  4007d0:	48 c7 c0 30 00 00 00 	mov    rax,0x30
+  4007d7:	e8 01 ff ff ff       	call   0x4006dd
+  4007dc:	48 c7 c0 33 00 00 00 	mov    rax,0x33
+  4007e3:	e8 f5 fe ff ff       	call   0x4006dd
+  4007e8:	48 c7 c0 36 00 00 00 	mov    rax,0x36
+  4007ef:	e8 e9 fe ff ff       	call   0x4006dd
+  4007f4:	48 c7 c0 38 00 00 00 	mov    rax,0x38
+  4007fb:	e8 dd fe ff ff       	call   0x4006dd
+  400800:	48 c7 c0 35 00 00 00 	mov    rax,0x35
+  400807:	e8 d1 fe ff ff       	call   0x4006dd
+  40080c:	48 c7 c0 34 00 00 00 	mov    rax,0x34
+  400813:	e8 c5 fe ff ff       	call   0x4006dd
+  400818:	48 c7 c0 37 00 00 00 	mov    rax,0x37
+  40081f:	e8 b9 fe ff ff       	call   0x4006dd
+  400824:	e8 b4 fe ff ff       	call   0x4006dd
+  400829:	48 c7 c0 35 00 00 00 	mov    rax,0x35
+  400830:	e8 a8 fe ff ff       	call   0x4006dd
+  400835:	48 c7 c0 38 00 00 00 	mov    rax,0x38
+  40083c:	e8 9c fe ff ff       	call   0x4006dd
+  400841:	48 c7 c0 30 00 00 00 	mov    rax,0x30
+  400848:	e8 90 fe ff ff       	call   0x4006dd
+  40084d:	48 c7 c0 38 00 00 00 	mov    rax,0x38
+  400854:	e8 84 fe ff ff       	call   0x4006dd
+  400859:	59                   	pop    rcx
+  40085a:	5a                   	pop    rdx
+  40085b:	5b                   	pop    rbx
+  40085c:	c3                   	ret
+  40085d <.L_FALSE_29>:	48 83 ff 00          	cmp    rdi,0x0
+  400861:	0f 89 0f 00 00 00    	jns    0x400876 <.L_FALSE_30>
+  400867:	48 c7 c0 2d 00 00 00 	mov    rax,0x2d
+  40086e:	e8 6a fe ff ff       	call   0x4006dd
+  400873:	48 f7 df             	neg    rdi
+  400876 <.L_FALSE_30>:	48 89 f8             	mov    rax,rdi
+  400879:	48 c7 c3 0a 00 00 00 	mov    rbx,0xa
+  400880:	48 c7 c1 00 00 00 00 	mov    rcx,0x0
+  400887 <.L_LOOP_START_31>:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  40088e:	48 f7 f3             	div    rbx
+  400891:	48 83 c2 30          	add    rdx,0x30
+  400895:	52                   	push   rdx
+  400896:	48 ff c1             	inc    rcx
+  400899:	48 83 f8 00          	cmp    rax,0x0
+  40089d:	0f 85 05 00 00 00    	jne    0x4008a8 <.L_FALSE_32>
+  4008a3:	e9 05 00 00 00       	jmp    0x4008ad <.L_LOOP_START_33> <.L_LOOP_END_31>
+  4008a8 <.L_FALSE_32>:	e9 da ff ff ff       	jmp    0x400887 <.L_LOOP_START_31>
+  4008ad <.L_LOOP_END_31>:	58                   	pop    rax
+  4008ae:	e8 2a fe ff ff       	call   0x4006dd
+  4008b3:	48 ff c9             	dec    rcx
+  4008b6:	48 83 f9 00          	cmp    rcx,0x0
+  4008ba:	0f 85 05 00 00 00    	jne    0x4008c5 <.L_FALSE_34>
+  4008c0:	e9 05 00 00 00       	jmp    0x4008ca <.L_LOOP_END_33>
+  4008c5 <.L_FALSE_34>:	e9 e3 ff ff ff       	jmp    0x4008ad <.L_LOOP_START_33> <.L_LOOP_END_31>
+  4008ca <.L_LOOP_END_33>:	59                   	pop    rcx
+  4008cb:	5a                   	pop    rdx
+  4008cc:	5b                   	pop    rbx
+  4008cd:	c3                   	ret
+  4008ce:	c3                   	ret
+  4008cf:	41 51                	push   r9
+  4008d1:	41 50                	push   r8
+  4008d3:	51                   	push   rcx
+  4008d4:	52                   	push   rdx
+  4008d5:	56                   	push   rsi
+  4008d6:	53                   	push   rbx
+  4008d7:	48 89 e5             	mov    rbp,rsp
+  4008da:	48 89 eb             	mov    rbx,rbp
+  4008dd:	48 83 c3 08          	add    rbx,0x8
+  4008e1:	48 89 fe             	mov    rsi,rdi
+  4008e4:	fc                   	cld
+  4008e5 <.L_LOOP_START_35>:	ac                   	lods   al,BYTE PTR ds:[rsi]
+  4008e6:	48 81 e0 ff 00 00 00 	and    rax,0xff
+  4008ed:	48 83 f8 00          	cmp    rax,0x0
+  4008f1:	0f 85 05 00 00 00    	jne    0x4008fc <.L_FALSE_36>
+  4008f7:	e9 9e 00 00 00       	jmp    0x40099a <pm_exit> <.L_LOOP_END_35>
+  4008fc <.L_FALSE_36>:	48 83 f8 25          	cmp    rax,0x25
+  400900:	0f 85 88 00 00 00    	jne    0x40098e <.L_FALSE_37>
+  400906:	ac                   	lods   al,BYTE PTR ds:[rsi]
+  400907:	48 81 e0 ff 00 00 00 	and    rax,0xff
+  40090e:	48 83 f8 73          	cmp    rax,0x73
+  400912:	0f 85 13 00 00 00    	jne    0x40092b <.L_FALSE_38>
+  400918:	48 8b 3b             	mov    rdi,QWORD PTR [rbx]
+  40091b:	48 83 c3 08          	add    rbx,0x8
+  40091f:	56                   	push   rsi
+  400920:	e8 8f fd ff ff       	call   0x4006b4
+  400925:	5e                   	pop    rsi
+  400926:	e9 ba ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  40092b <.L_FALSE_38>:	48 83 f8 64          	cmp    rax,0x64
+  40092f:	0f 85 13 00 00 00    	jne    0x400948 <.L_FALSE_39>
+  400935:	48 8b 3b             	mov    rdi,QWORD PTR [rbx]
+  400938:	48 83 c3 08          	add    rbx,0x8
+  40093c:	56                   	push   rsi
+  40093d:	e8 26 fe ff ff       	call   0x400768
+  400942:	5e                   	pop    rsi
+  400943:	e9 9d ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  400948 <.L_FALSE_39>:	48 83 f8 78          	cmp    rax,0x78
+  40094c:	0f 85 13 00 00 00    	jne    0x400965 <.L_FALSE_40>
+  400952:	48 8b 3b             	mov    rdi,QWORD PTR [rbx]
+  400955:	48 83 c3 08          	add    rbx,0x8
+  400959:	56                   	push   rsi
+  40095a:	e8 b6 fd ff ff       	call   0x400715
+  40095f:	5e                   	pop    rsi
+  400960:	e9 80 ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  400965 <.L_FALSE_40>:	48 83 f8 63          	cmp    rax,0x63
+  400969:	0f 85 13 00 00 00    	jne    0x400982 <.L_FALSE_41>
+  40096f:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+  400972:	48 83 c3 08          	add    rbx,0x8
+  400976:	56                   	push   rsi
+  400977:	e8 61 fd ff ff       	call   0x4006dd
+  40097c:	5e                   	pop    rsi
+  40097d:	e9 63 ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  400982 <.L_FALSE_41>:	56                   	push   rsi
+  400983:	e8 55 fd ff ff       	call   0x4006dd
+  400988:	5e                   	pop    rsi
+  400989:	e9 57 ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  40098e <.L_FALSE_37>:	56                   	push   rsi
+  40098f:	e8 49 fd ff ff       	call   0x4006dd
+  400994:	5e                   	pop    rsi
+  400995:	e9 4b ff ff ff       	jmp    0x4008e5 <.L_LOOP_START_35>
+  40099a <.L_LOOP_END_35>:	5b                   	pop    rbx
+  40099b:	5e                   	pop    rsi
+  40099c:	5a                   	pop    rdx
+  40099d:	59                   	pop    rcx
+  40099e:	41 58                	pop    r8
+  4009a0:	41 59                	pop    r9
+  4009a2:	c3                   	ret
+  4009a3:	c3                   	ret
+  4009a4:	51                   	push   rcx
+  4009a5:	57                   	push   rdi
+  4009a6:	48 c7 c1 ff ff ff ff 	mov    rcx,0xffffffffffffffff
+  4009ad:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  4009b4:	fc                   	cld
+  4009b5:	f2 ae                	repnz scas al,BYTE PTR es:[rdi]
+  4009b7:	48 f7 d1             	not    rcx
+  4009ba:	48 ff c9             	dec    rcx
+  4009bd:	48 89 c8             	mov    rax,rcx
+  4009c0:	5f                   	pop    rdi
+  4009c1:	59                   	pop    rcx
+  4009c2:	c3                   	ret
+  4009c3:	c3                   	ret
+  4009c4:	50                   	push   rax
+  4009c5:	51                   	push   rcx
+  4009c6:	56                   	push   rsi
+  4009c7:	57                   	push   rdi
+  4009c8:	57                   	push   rdi
+  4009c9:	48 89 f7             	mov    rdi,rsi
+  4009cc:	e8 d3 ff ff ff       	call   0x4009a4
+  4009d1:	48 89 c1             	mov    rcx,rax
+  4009d4:	48 ff c1             	inc    rcx
+  4009d7:	5f                   	pop    rdi
+  4009d8:	fc                   	cld
+  4009d9:	f3 a4                	rep movs BYTE PTR es:[rdi],BYTE PTR ds:[rsi]
+  4009db:	5f                   	pop    rdi
+  4009dc:	5e                   	pop    rsi
+  4009dd:	59                   	pop    rcx
+  4009de:	58                   	pop    rax
+  4009df:	c3                   	ret
+  4009e0:	c3                   	ret
+  4009e1:	50                   	push   rax
+  4009e2:	51                   	push   rcx
+  4009e3:	57                   	push   rdi
+  4009e4:	56                   	push   rsi
+  4009e5:	57                   	push   rdi
+  4009e6:	e8 b9 ff ff ff       	call   0x4009a4
+  4009eb:	5f                   	pop    rdi
+  4009ec:	48 01 c7             	add    rdi,rax
+  4009ef:	e8 d0 ff ff ff       	call   0x4009c4
+  4009f4:	5e                   	pop    rsi
+  4009f5:	5f                   	pop    rdi
+  4009f6:	59                   	pop    rcx
+  4009f7:	58                   	pop    rax
+  4009f8:	c3                   	ret
+  4009f9:	c3                   	ret
+  4009fa:	51                   	push   rcx
+  4009fb:	57                   	push   rdi
+  4009fc:	56                   	push   rsi
+  4009fd:	52                   	push   rdx
+  4009fe <.L_LOOP_START_42>:	48 0f b6 07          	movzx  rax,BYTE PTR [rdi]
+  400a02:	48 0f b6 16          	movzx  rdx,BYTE PTR [rsi]
+  400a06:	48 39 d0             	cmp    rax,rdx
+  400a09:	0f 84 21 00 00 00    	je     0x400a30 <.L_FALSE_43>
+  400a0f:	48 39 d0             	cmp    rax,rdx
+  400a12:	0f 86 0c 00 00 00    	jbe    0x400a24 <.L_FALSE_44>
+  400a18:	48 c7 c0 01 00 00 00 	mov    rax,0x1
+  400a1f:	e9 07 00 00 00       	jmp    0x400a2b <.L_END_44>
+  400a24 <.L_FALSE_44>:	48 c7 c0 ff ff ff ff 	mov    rax,0xffffffffffffffff
+  400a2b <.L_END_44>:	e9 21 00 00 00       	jmp    0x400a51 <strcmp_done> <.L_LOOP_END_42>
+  400a30 <.L_FALSE_43>:	48 83 f8 00          	cmp    rax,0x0
+  400a34:	0f 85 0c 00 00 00    	jne    0x400a46 <.L_FALSE_45>
+  400a3a:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  400a41:	e9 0b 00 00 00       	jmp    0x400a51 <strcmp_done> <.L_LOOP_END_42>
+  400a46 <.L_FALSE_45>:	48 ff c7             	inc    rdi
+  400a49:	48 ff c6             	inc    rsi
+  400a4c:	e9 ad ff ff ff       	jmp    0x4009fe <.L_LOOP_START_42>
+  400a51 <.L_LOOP_END_42>:	5a                   	pop    rdx
+  400a52:	5e                   	pop    rsi
+  400a53:	5f                   	pop    rdi
+  400a54:	59                   	pop    rcx
+  400a55:	c3                   	ret
+  400a56:	c3                   	ret
+  400a57:	57                   	push   rdi
+  400a58:	51                   	push   rcx
+  400a59:	e8 46 ff ff ff       	call   0x4009a4
+  400a5e:	48 89 c1             	mov    rcx,rax
+  400a61:	48 ff c1             	inc    rcx
+  400a64:	57                   	push   rdi
+  400a65:	48 89 cf             	mov    rdi,rcx
+  400a68:	e8 40 f7 ff ff       	call   0x4001ad
+  400a6d:	5f                   	pop    rdi
+  400a6e:	50                   	push   rax
+  400a6f:	48 89 fe             	mov    rsi,rdi
+  400a72:	48 89 c7             	mov    rdi,rax
+  400a75:	e8 4a ff ff ff       	call   0x4009c4
+  400a7a:	58                   	pop    rax
+  400a7b:	59                   	pop    rcx
+  400a7c:	5f                   	pop    rdi
+  400a7d:	c3                   	ret
+  400a7e:	c3                   	ret
+  400a7f:	51                   	push   rcx
+  400a80:	57                   	push   rdi
+  400a81:	48 81 e6 ff 00 00 00 	and    rsi,0xff
+  400a88 <.L_LOOP_START_46>:	48 0f b6 07          	movzx  rax,BYTE PTR [rdi]
+  400a8c:	48 39 f0             	cmp    rax,rsi
+  400a8f:	0f 85 08 00 00 00    	jne    0x400a9d <.L_FALSE_47>
+  400a95:	48 89 f8             	mov    rax,rdi
+  400a98:	e9 1e 00 00 00       	jmp    0x400abb <strchr_found> <.L_LOOP_END_46>
+  400a9d <.L_FALSE_47>:	48 83 f8 00          	cmp    rax,0x0
+  400aa1:	0f 85 0c 00 00 00    	jne    0x400ab3 <.L_FALSE_48>
+  400aa7:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  400aae:	e9 08 00 00 00       	jmp    0x400abb <strchr_found> <.L_LOOP_END_46>
+  400ab3 <.L_FALSE_48>:	48 ff c7             	inc    rdi
+  400ab6:	e9 cd ff ff ff       	jmp    0x400a88 <.L_LOOP_START_46>
+  400abb <.L_LOOP_END_46>:	5f                   	pop    rdi
+  400abc:	59                   	pop    rcx
+  400abd:	c3                   	ret
+  400abe:	c3                   	ret
+  400abf:	53                   	push   rbx
+  400ac0:	51                   	push   rcx
+  400ac1:	57                   	push   rdi
+  400ac2:	48 c7 c0 05 15 00 00 	mov    rax,0x1505
+  400ac9:	48 c7 c3 00 00 00 00 	mov    rbx,0x0
+  400ad0 <.L_LOOP_START_49>:	48 0f b6 1f          	movzx  rbx,BYTE PTR [rdi]
+  400ad4:	48 83 fb 00          	cmp    rbx,0x0
+  400ad8:	0f 85 05 00 00 00    	jne    0x400ae3 <.L_FALSE_50>
+  400ade:	e9 15 00 00 00       	jmp    0x400af8 <.L_LOOP_END_49>
+  400ae3 <.L_FALSE_50>:	48 89 c1             	mov    rcx,rax
+  400ae6:	48 c1 e1 05          	shl    rcx,0x5
+  400aea:	48 01 c8             	add    rax,rcx
+  400aed:	48 01 d8             	add    rax,rbx
+  400af0:	48 ff c7             	inc    rdi
+  400af3:	e9 d8 ff ff ff       	jmp    0x400ad0 <.L_LOOP_START_49>
+  400af8 <.L_LOOP_END_49>:	5f                   	pop    rdi
+  400af9:	59                   	pop    rcx
+  400afa:	5b                   	pop    rbx
+  400afb:	c3                   	ret
+  400afc:	c3                   	ret
+  400afd:	57                   	push   rdi
+  400afe:	51                   	push   rcx
+  400aff:	48 89 f8             	mov    rax,rdi
+  400b02:	48 c7 c1 08 00 00 00 	mov    rcx,0x8
+  400b09:	48 f7 e1             	mul    rcx
+  400b0c:	48 83 c0 10          	add    rax,0x10
+  400b10:	50                   	push   rax
+  400b11:	57                   	push   rdi
+  400b12:	48 89 c7             	mov    rdi,rax
+  400b15:	e8 93 f6 ff ff       	call   0x4001ad
+  400b1a:	48 89 c3             	mov    rbx,rax
+  400b1d:	5f                   	pop    rdi
+  400b1e:	58                   	pop    rax
+  400b1f:	48 89 3b             	mov    QWORD PTR [rbx],rdi
+  400b22:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400b29:	48 89 d9             	mov    rcx,rbx
+  400b2c:	48 83 c1 08          	add    rcx,0x8
+  400b30:	48 89 11             	mov    QWORD PTR [rcx],rdx
+  400b33:	57                   	push   rdi
+  400b34:	50                   	push   rax
+  400b35:	48 89 f9             	mov    rcx,rdi
+  400b38:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  400b3f:	48 89 df             	mov    rdi,rbx
+  400b42:	48 83 c7 10          	add    rdi,0x10
+  400b46:	fc                   	cld
+  400b47:	f3 58                	repz pop rax
+  400b49:	5f                   	pop    rdi
+  400b4a:	48 89 d8             	mov    rax,rbx
+  400b4d:	59                   	pop    rcx
+  400b4e:	5f                   	pop    rdi
+  400b4f:	c3                   	ret
+  400b50:	c3                   	ret
+  400b51:	53                   	push   rbx
+  400b52:	41 54                	push   r12
+  400b54:	41 55                	push   r13
+  400b56:	49 89 d4             	mov    r12,rdx
+  400b59:	49 89 f5             	mov    r13,rsi
+  400b5c:	57                   	push   rdi
+  400b5d:	4c 89 ef             	mov    rdi,r13
+  400b60:	e8 5a ff ff ff       	call   0x400abf
+  400b65:	49 89 c0             	mov    r8,rax
+  400b68:	5f                   	pop    rdi
+  400b69:	4c 89 c0             	mov    rax,r8
+  400b6c:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400b73:	48 8b 0f             	mov    rcx,QWORD PTR [rdi]
+  400b76:	48 f7 f1             	div    rcx
+  400b79:	49 89 d1             	mov    r9,rdx
+  400b7c:	49 89 fa             	mov    r10,rdi
+  400b7f:	49 83 c2 10          	add    r10,0x10
+  400b83:	4c 89 c8             	mov    rax,r9
+  400b86:	48 c7 c3 08 00 00 00 	mov    rbx,0x8
+  400b8d:	48 f7 e3             	mul    rbx
+  400b90:	49 01 c2             	add    r10,rax
+  400b93:	4c 89 d3             	mov    rbx,r10
+  400b96 <.L_LOOP_START_51>:	48 8b 0b             	mov    rcx,QWORD PTR [rbx]
+  400b99:	48 83 f9 00          	cmp    rcx,0x0
+  400b9d:	0f 85 39 00 00 00    	jne    0x400bdc <.L_FALSE_52>
+  400ba3:	57                   	push   rdi
+  400ba4:	53                   	push   rbx
+  400ba5:	48 c7 c7 18 00 00 00 	mov    rdi,0x18
+  400bac:	e8 fc f5 ff ff       	call   0x4001ad
+  400bb1:	49 89 c0             	mov    r8,rax
+  400bb4:	5b                   	pop    rbx
+  400bb5:	5f                   	pop    rdi
+  400bb6:	4d 89 28             	mov    QWORD PTR [r8],r13
+  400bb9:	4d 89 c2             	mov    r10,r8
+  400bbc:	49 83 c2 08          	add    r10,0x8
+  400bc0:	4d 89 22             	mov    QWORD PTR [r10],r12
+  400bc3:	4d 89 c2             	mov    r10,r8
+  400bc6:	49 83 c2 10          	add    r10,0x10
+  400bca:	49 c7 c3 00 00 00 00 	mov    r11,0x0
+  400bd1:	4d 89 1a             	mov    QWORD PTR [r10],r11
+  400bd4:	4c 89 03             	mov    QWORD PTR [rbx],r8
+  400bd7:	e9 39 00 00 00       	jmp    0x400c15 <.L_LOOP_END_51>
+  400bdc <.L_FALSE_52>:	57                   	push   rdi
+  400bdd:	51                   	push   rcx
+  400bde:	53                   	push   rbx
+  400bdf:	48 8b 39             	mov    rdi,QWORD PTR [rcx]
+  400be2:	4c 89 ee             	mov    rsi,r13
+  400be5:	e8 10 fe ff ff       	call   0x4009fa
+  400bea:	48 83 f8 00          	cmp    rax,0x0
+  400bee:	0f 85 12 00 00 00    	jne    0x400c06 <.L_FALSE_53>
+  400bf4:	5b                   	pop    rbx
+  400bf5:	59                   	pop    rcx
+  400bf6:	5f                   	pop    rdi
+  400bf7:	49 89 ca             	mov    r10,rcx
+  400bfa:	49 83 c2 08          	add    r10,0x8
+  400bfe:	4d 89 22             	mov    QWORD PTR [r10],r12
+  400c01:	e9 0f 00 00 00       	jmp    0x400c15 <.L_LOOP_END_51>
+  400c06 <.L_FALSE_53>:	5b                   	pop    rbx
+  400c07:	59                   	pop    rcx
+  400c08:	5f                   	pop    rdi
+  400c09:	48 89 cb             	mov    rbx,rcx
+  400c0c:	48 83 c3 10          	add    rbx,0x10
+  400c10:	e9 81 ff ff ff       	jmp    0x400b96 <.L_LOOP_START_51>
+  400c15 <.L_LOOP_END_51>:	41 5d                	pop    r13
+  400c17:	41 5c                	pop    r12
+  400c19:	5b                   	pop    rbx
+  400c1a:	c3                   	ret
+  400c1b:	c3                   	ret
+  400c1c:	53                   	push   rbx
+  400c1d:	41 55                	push   r13
+  400c1f:	49 89 f5             	mov    r13,rsi
+  400c22:	57                   	push   rdi
+  400c23:	4c 89 ef             	mov    rdi,r13
+  400c26:	e8 94 fe ff ff       	call   0x400abf
+  400c2b:	49 89 c0             	mov    r8,rax
+  400c2e:	5f                   	pop    rdi
+  400c2f:	4c 89 c0             	mov    rax,r8
+  400c32:	48 c7 c2 00 00 00 00 	mov    rdx,0x0
+  400c39:	48 8b 0f             	mov    rcx,QWORD PTR [rdi]
+  400c3c:	48 f7 f1             	div    rcx
+  400c3f:	49 89 d1             	mov    r9,rdx
+  400c42:	49 89 fa             	mov    r10,rdi
+  400c45:	49 83 c2 10          	add    r10,0x10
+  400c49:	4c 89 c8             	mov    rax,r9
+  400c4c:	48 c7 c3 08 00 00 00 	mov    rbx,0x8
+  400c53:	48 f7 e3             	mul    rbx
+  400c56:	49 01 c2             	add    r10,rax
+  400c59:	49 8b 0a             	mov    rcx,QWORD PTR [r10]
+  400c5c <.L_LOOP_START_54>:	48 83 f9 00          	cmp    rcx,0x0
+  400c60:	0f 85 0c 00 00 00    	jne    0x400c72 <.L_FALSE_55>
+  400c66:	48 c7 c0 00 00 00 00 	mov    rax,0x0
+  400c6d:	e9 39 00 00 00       	jmp    0x400cab <.L_LOOP_END_54>
+  400c72 <.L_FALSE_55>:	57                   	push   rdi
+  400c73:	51                   	push   rcx
+  400c74:	48 8b 39             	mov    rdi,QWORD PTR [rcx]
+  400c77:	4c 89 ee             	mov    rsi,r13
+  400c7a:	e8 7b fd ff ff       	call   0x4009fa
+  400c7f:	48 83 f8 00          	cmp    rax,0x0
+  400c83:	0f 85 11 00 00 00    	jne    0x400c9a <.L_FALSE_56>
+  400c89:	59                   	pop    rcx
+  400c8a:	5f                   	pop    rdi
+  400c8b:	49 89 ca             	mov    r10,rcx
+  400c8e:	49 83 c2 08          	add    r10,0x8
+  400c92:	49 8b 02             	mov    rax,QWORD PTR [r10]
+  400c95:	e9 11 00 00 00       	jmp    0x400cab <.L_LOOP_END_54>
+  400c9a <.L_FALSE_56>:	59                   	pop    rcx
+  400c9b:	5f                   	pop    rdi
+  400c9c:	49 89 ca             	mov    r10,rcx
+  400c9f:	49 83 c2 10          	add    r10,0x10
+  400ca3:	49 8b 0a             	mov    rcx,QWORD PTR [r10]
+  400ca6:	e9 b1 ff ff ff       	jmp    0x400c5c <.L_LOOP_START_54>
+  400cab <.L_LOOP_END_54>:	41 5d                	pop    r13
+  400cad:	5b                   	pop    rbx
+  400cae:	c3                   	ret
+  400caf:	c3                   	ret
+  400cb0 <key1>:	75 73                	jne    0x400d25
+  400cb2:	65 72 6e             	gs jb  0x400d23
+  400cb5:	61                   	(bad)
+  400cb6:	6d                   	ins    DWORD PTR es:[rdi],dx
+  400cb7:	65 00 6a 75          	add    BYTE PTR gs:[rdx+0x75],ch
+  400cbb:	6c                   	ins    BYTE PTR es:[rdi],dx
+  400cbc:	65 73 00             	gs jae 0x400cbf <key2>
+  400cbf <key2>:	72 6f                	jb     0x400d30
+  400cc1:	6c                   	ins    BYTE PTR es:[rdi],dx
+  400cc2:	65 00 61 64          	add    BYTE PTR gs:[rcx+0x64],ah
+  400cc6:	6d                   	ins    DWORD PTR es:[rdi],dx
+  400cc7:	69 6e 00 6c 61 6e 67 	imul   ebp,DWORD PTR [rsi+0x0],0x676e616c
+  400cce:	00 69 6e             	add    BYTE PTR [rcx+0x6e],ch
+  400cd1:	64 6f                	outs   dx,DWORD PTR fs:[rsi]
+  400cd3:	6e                   	outs   dx,BYTE PTR ds:[rsi]
+  400cd4:	65 73 69             	gs jae 0x400d40
+  400cd7:	61                   	(bad)
+  400cd8:	00 73 75             	add    BYTE PTR [rbx+0x75],dh
+  400cdb:	70 65                	jo     0x400d42
+  400cdd:	72 75                	jb     0x400d54
+  400cdf:	73 65                	jae    0x400d46
+  400ce1:	72 00                	jb     0x400ce3 <msg_start>
+  400ce3 <msg_start>:	5b                   	pop    rbx
+  400ce4:	54                   	push   rsp
+  400ce5:	45 53                	rex.RB push r11
+  400ce7:	54                   	push   rsp
+  400ce8:	5d                   	pop    rbp
+  400ce9:	20 48 61             	and    BYTE PTR [rax+0x61],cl
+  400cec:	73 68                	jae    0x400d56
+  400cee:	6d                   	ins    DWORD PTR es:[rdi],dx
+  400cef:	61                   	(bad)
+  400cf0:	70 20                	jo     0x400d12
+  400cf2:	53                   	push   rbx
+  400cf3:	74 61                	je     0x400d56
+  400cf5:	72 74                	jb     0x400d6b
+  400cf7:	2e 2e 2e 00 5b 54    	cs cs cs add BYTE PTR [rbx+0x54],bl
+  400cfd:	45 53                	rex.RB push r11
+  400cff:	54                   	push   rsp
+  400d00:	5d                   	pop    rbp
+  400d01:	20 6d 61             	and    BYTE PTR [rbp+0x61],ch
+  400d04:	70 5f                	jo     0x400d65
+  400d06:	70 75                	jo     0x400d7d
+  400d08:	74 2e                	je     0x400d38
+  400d0a:	2e 2e 00 5b 54       	cs cs add BYTE PTR [rbx+0x54],bl
+  400d0f:	45 53                	rex.RB push r11
+  400d11:	54                   	push   rsp
+  400d12:	5d                   	pop    rbp
+  400d13:	20 6d 61             	and    BYTE PTR [rbp+0x61],ch
+  400d16:	70 5f                	jo     0x400d77
+  400d18:	67 65 74 2e          	addr32 gs je 0x400d4a
+  400d1c:	2e 2e 00 5b 54       	cs cs add BYTE PTR [rbx+0x54],bl
+  400d21:	45 53                	rex.RB push r11
+  400d23:	54                   	push   rsp
+  400d24:	5d                   	pop    rbp
+  400d25:	20 6d 61             	and    BYTE PTR [rbp+0x61],ch
+  400d28:	70 5f                	jo     0x400d89
+  400d2a:	75 70                	jne    0x400d9c
+  400d2c:	64 61                	fs (bad)
+  400d2e:	74 65                	je     0x400d95
+  400d30:	2e 2e 2e 00 50 41    	cs cs cs add BYTE PTR [rax+0x41],dl
+  400d36:	53                   	push   rbx
+  400d37:	53                   	push   rbx
+  400d38:	0a 00                	or     al,BYTE PTR [rax]
+  400d3a <msg_fail>:	46                   	rex.RX
+  400d3b:	41                   	rex.B
+  400d3c:	49                   	rex.WB
+  400d3d:	4c 0a 00             	rex.WR or r8b,BYTE PTR [rax]
+  400d40:	57                   	push   rdi
+  400d41:	56                   	push   rsi
+  400d42:	52                   	push   rdx
+  400d43:	e8 6c f9 ff ff       	call   0x4006b4
+  400d48:	5a                   	pop    rdx
+  400d49:	5e                   	pop    rsi
+  400d4a:	48 83 fa 00          	cmp    rdx,0x0
+  400d4e:	0f 85 0e 00 00 00    	jne    0x400d62 <.L_FALSE_57>
+  400d54:	48 c7 c7 3a 0d 40 00 	mov    rdi,0x400d3a <msg_fail>
+  400d5b:	e8 54 f9 ff ff       	call   0x4006b4
+  400d60:	5f                   	pop    rdi
+  400d61:	c3                   	ret
+  400d62 <.L_FALSE_57>:	48 89 d7             	mov    rdi,rdx
+  400d65:	e8 90 fc ff ff       	call   0x4009fa
+  400d6a:	48 83 f8 00          	cmp    rax,0x0
+  400d6e:	0f 85 11 00 00 00    	jne    0x400d85 <.L_FALSE_58>
+  400d74:	48 c7 c7 34 0d 40 00 	mov    rdi,0x400d34 <msg_pass>
+  400d7b:	e8 34 f9 ff ff       	call   0x4006b4
+  400d80:	e9 0c 00 00 00       	jmp    0x400d91 <.L_END_58>
+  400d85 <.L_FALSE_58>:	48 c7 c7 3a 0d 40 00 	mov    rdi,0x400d3a <msg_fail>
+  400d8c:	e8 23 f9 ff ff       	call   0x4006b4
+  400d91 <.L_END_58>:	5f                   	pop    rdi
+  400d92:	c3                   	ret
+  400d93:	c3                   	ret
+  400d94:	e8 db f3 ff ff       	call   0x400174
+  400d99:	48 c7 c7 e3 0c 40 00 	mov    rdi,0x400ce3 <msg_start>
+  400da0:	e8 0f f9 ff ff       	call   0x4006b4
+  400da5:	48 c7 c7 0a 00 00 00 	mov    rdi,0xa
+  400dac:	e8 2c f9 ff ff       	call   0x4006dd
+  400db1:	48 c7 c7 10 00 00 00 	mov    rdi,0x10
+  400db8:	e8 40 fd ff ff       	call   0x400afd
+  400dbd:	48 89 c3             	mov    rbx,rax
+  400dc0:	48 c7 c7 fb 0c 40 00 	mov    rdi,0x400cfb <msg_put>
+  400dc7:	e8 e8 f8 ff ff       	call   0x4006b4
+  400dcc:	48 c7 c7 0a 00 00 00 	mov    rdi,0xa
+  400dd3:	e8 05 f9 ff ff       	call   0x4006dd
+  400dd8:	48 89 df             	mov    rdi,rbx
+  400ddb:	48 c7 c6 b0 0c 40 00 	mov    rsi,0x400cb0 <key1>
+  400de2:	48 c7 c2 b9 0c 40 00 	mov    rdx,0x400cb9 <val1>
+  400de9:	e8 63 fd ff ff       	call   0x400b51
+  400dee:	48 89 df             	mov    rdi,rbx
+  400df1:	48 c7 c6 bf 0c 40 00 	mov    rsi,0x400cbf <key2>
+  400df8:	48 c7 c2 c4 0c 40 00 	mov    rdx,0x400cc4 <val2>
+  400dff:	e8 4d fd ff ff       	call   0x400b51
+  400e04:	48 89 df             	mov    rdi,rbx
+  400e07:	48 c7 c6 b0 0c 40 00 	mov    rsi,0x400cb0 <key1>
+  400e0e:	e8 09 fe ff ff       	call   0x400c1c
+  400e13:	48 89 c2             	mov    rdx,rax
+  400e16:	48 c7 c6 b9 0c 40 00 	mov    rsi,0x400cb9 <val1>
+  400e1d:	48 c7 c7 0d 0d 40 00 	mov    rdi,0x400d0d <msg_get>
+  400e24:	e8 17 ff ff ff       	call   0x400d40
+  400e29:	48 89 df             	mov    rdi,rbx
+  400e2c:	48 c7 c6 bf 0c 40 00 	mov    rsi,0x400cbf <key2>
+  400e33:	e8 e4 fd ff ff       	call   0x400c1c
+  400e38:	48 89 c2             	mov    rdx,rax
+  400e3b:	48 c7 c6 c4 0c 40 00 	mov    rsi,0x400cc4 <val2>
+  400e42:	48 c7 c7 0d 0d 40 00 	mov    rdi,0x400d0d <msg_get>
+  400e49:	e8 f2 fe ff ff       	call   0x400d40
+  400e4e:	48 89 df             	mov    rdi,rbx
+  400e51:	48 c7 c6 bf 0c 40 00 	mov    rsi,0x400cbf <key2>
+  400e58:	48 c7 c2 d9 0c 40 00 	mov    rdx,0x400cd9 <val2_update>
+  400e5f:	e8 ed fc ff ff       	call   0x400b51
+  400e64:	48 89 df             	mov    rdi,rbx
+  400e67:	48 c7 c6 bf 0c 40 00 	mov    rsi,0x400cbf <key2>
+  400e6e:	e8 a9 fd ff ff       	call   0x400c1c
+  400e73:	48 89 c2             	mov    rdx,rax
+  400e76:	48 c7 c6 d9 0c 40 00 	mov    rsi,0x400cd9 <val2_update>
+  400e7d:	48 c7 c7 1f 0d 40 00 	mov    rdi,0x400d1f <msg_update>
+  400e84:	e8 b7 fe ff ff       	call   0x400d40
+  400e89:	48 c7 c7 00 00 00 00 	mov    rdi,0x0
+  400e90:	e8 d4 f2 ff ff       	call   0x400169
+  400e95:	c3                   	ret
