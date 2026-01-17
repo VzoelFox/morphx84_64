@@ -94,6 +94,7 @@ int3                opcode=0xCC ; [AI_HINT: Breakpoint / Hard Divider]
 
 ; Subroutine
 call.rel32          opcode=0xE8 rel32 ; [AI_HINT: Panggil fungsi]
+call.r64            rex=W opcode=0xFF modrm=2 ; [AI_HINT: Panggil fungsi dari register]
 ret                 opcode=0xC3       ; [AI_HINT: Kembali dari fungsi (kembali)]
 kembali             opcode=0xC3       ; [AI_HINT: Alias ret]
 
