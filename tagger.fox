@@ -8,3 +8,4 @@ Ambil morphlib/daemon.fox
 Ambil morphlib/morphroutine.fox
 Ambil morphlib/io.fox
 Ambil morphlib/string.fox
+Ambil morphlib/hashmap.fox
