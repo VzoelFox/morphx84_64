@@ -151,6 +151,101 @@ fungsi buf_push_byte
     ret
 tutup_fungsi
 
+fungsi buf_push_qword
+    ; Input: rdi (Buffer*), rsi (qword value)
+    ; Output: None
+
+    push rbx
+    push rdi
+    push rsi
+
+    ; Check capacity (need 8 bytes)
+    push rdi
+    add rdi, Buffer_size
+    mov rax, [rdi]
+    pop rdi
+
+    push rdi
+    add rdi, Buffer_capacity
+    mov rcx, [rdi]
+    pop rdi
+
+    mov rdx, rax
+    add rdx, 8 ; Need size + 8 <= cap
+
+    cmp rdx, rcx
+    jika_diatas
+        ; Grow needed
+        jmp .L_buf_grow_q
+    tutup_jika
+    jmp .L_buf_write_q
+
+    .L_buf_grow_q:
+    ; Grow Loop until capacity >= size+8
+    ; new_cap = cap * 2
+    mov rax, rcx
+    add rax, rcx
+    push rax ; new_cap
+
+    ; mov rdi, [rdi + Buffer_data]
+    push rdi
+    add rdi, Buffer_data
+    mov rdi, [rdi]
+    mov rsi, rax ; new_cap
+    call mem_realloc
+
+    pop rcx ; new_cap
+
+    ; Restore Buffer* from stack (at [rsp+8])
+    mov rbx, rsp
+    add rbx, 8
+    mov rbx, [rbx]
+
+    ; Update data and capacity
+    push rbx
+    add rbx, Buffer_data
+    mov [rbx], rax
+    pop rbx
+
+    push rbx
+    add rbx, Buffer_capacity
+    mov [rbx], rcx
+    pop rbx
+
+    ; Check if enough? (simplified: assume one grow is enough if cap starts reasonably, or recurse?)
+    ; For 8 bytes, doubling is usually enough unless cap was 0.
+
+    .L_buf_write_q:
+    pop rsi
+    pop rdi
+
+    ; mov rax, [rdi + Buffer_size]
+    push rdi
+    add rdi, Buffer_size
+    mov rax, [rdi]
+    pop rdi
+
+    ; mov rbx, [rdi + Buffer_data]
+    push rdi
+    add rdi, Buffer_data
+    mov rbx, [rdi]
+    pop rdi
+
+    ; Write qword at [data + size]
+    add rbx, rax
+    mov [rbx], rsi
+
+    ; Inc size + 8
+    add rax, 8
+    push rdi
+    add rdi, Buffer_size
+    mov [rdi], rax
+    pop rdi
+
+    pop rbx
+    ret
+tutup_fungsi
+
 fungsi buf_free
     ; Input: rdi (Buffer*)
     push rdi

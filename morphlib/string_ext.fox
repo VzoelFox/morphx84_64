@@ -1,0 +1,152 @@
+ambil buffer.fox
+ambil string.fox
+
+fungsi str_to_int
+    ; Input: rdi (string ptr)
+    ; Output: rax (int64)
+    ; Handles optional '-' sign.
+
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+
+    mov rsi, rdi
+    mov rax, 0 ; Result
+    mov rcx, 0 ; Sign (0=pos, 1=neg)
+
+    ; Check sign
+    movzx rdx, [rsi]
+    cmp rdx, 45 ; '-'
+    jika_sama
+        mov rcx, 1
+        inc rsi
+    tutup_jika
+
+    loop stoi_loop
+        movzx rdx, [rsi]
+
+        ; Check if digit (0-9)
+        cmp rdx, 48 ; '0'
+        jika_kurang
+            henti ; Not a digit
+        tutup_jika
+        cmp rdx, 57 ; '9'
+        jika_diatas
+            henti ; Not a digit
+        tutup_jika
+
+        ; val = val * 10 + (digit - '0')
+        push rdx ; Save digit char
+
+        mov rbx, 10
+        mul rbx ; rax = rax * 10
+
+        pop rdx
+        sub rdx, 48 ; char to int
+        add rax, rdx
+
+        inc rsi
+    tutup_loop
+
+    ; Apply sign
+    cmp rcx, 1
+    jika_sama
+        neg rax
+    tutup_jika
+
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
+tutup_fungsi
+
+fungsi str_split
+    ; Input: rdi (string ptr), rsi (delimiter char)
+    ; Output: rax (Buffer* containing string pointers)
+    ; Note: Non-destructive. Creates copies of tokens.
+
+    push rbx ; Save rbx (will hold current token start)
+    push r12 ; Save r12 (hold current scan ptr)
+    push r13 ; Hold delimiter
+    push r14 ; Hold Buffer*
+
+    mov rbx, rdi ; Token start
+    mov r12, rdi ; Scan ptr
+    mov r13, rsi ; Delim
+
+    ; Create buffer
+    mov rdi, 4 ; Initial cap
+    call buf_create
+    mov r14, rax
+
+    loop split_loop
+        movzx rdx, [r12]
+
+        ; Check End of String
+        cmp rdx, 0
+        jika_sama
+            ; Push last token if exists
+            cmp rbx, r12
+            jika_beda
+                ; Token from rbx to r12 (exclusive)
+                ; Make copy.
+                ; But str_dup copies until NULL. We need str_ndup logic.
+                ; Or simpler: Temporarily put NULL at [r12], str_dup, restore.
+                ; But r12 points to 0 already. So [r12] IS null.
+                ; So str_dup(rbx) works perfectly for the last token!
+                mov rdi, rbx
+                call str_dup
+                ; Push pointer to buffer
+                mov rdi, r14
+                mov rsi, rax ; Pointer string
+                call buf_push_qword ; NEED TO IMPLEMENT THIS in buffer.fox?
+                ; Currently only buf_push_byte.
+                ; We will assume we add buf_push_qword or manually do it.
+                ; Let's assume we implement buf_push_qword in buffer.fox first.
+            tutup_jika
+            henti
+        tutup_jika
+
+        ; Check Delimiter
+        cmp rdx, r13
+        jika_sama
+            ; Found delimiter.
+            ; Temporarily replace delim with 0 to copy token.
+            ; mov byte [r12], 0
+            mov r11, 0
+            movb [r12], r11
+
+            mov rdi, rbx
+            call str_dup
+
+            ; Restore delim
+            mov rdx, r13 ; Delim (might be clobbered? r13 is safe)
+            ; r13 is 64-bit. We need byte.
+            ; mov [r12], r13b ? Parser doesn't support r13b directly without REX logic maybe?
+            ; Use r11
+            mov r11, r13
+            movb [r12], r11
+
+            ; Push to buffer
+            mov rdi, r14
+            mov rsi, rax
+            call buf_push_qword
+
+            ; Update token start to next char
+            mov rbx, r12
+            inc rbx
+        tutup_jika
+
+        inc r12
+    tutup_loop
+
+    mov rax, r14
+
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+tutup_fungsi

@@ -98,4 +98,5 @@ mulss.r64.r64       opcode=0xF3,0x0F,0x59 modrm=dst_reg,src_reg ; [AI_HINT: Mul 
 divss.r64.r64       opcode=0xF3,0x0F,0x5E modrm=dst_reg,src_reg ; [AI_HINT: Div float]
 ucomiss.r64.r64     opcode=0x0F,0x2E modrm=dst_reg,src_reg      ; [AI_HINT: Compare float unordered]
 cvtsi2ss.r64.r64    rex=W opcode=0xF3,0x0F,0x2A modrm=dst_reg,src_reg ; [AI_HINT: Convert Int64 to Float32]
-cvtss2si.r64.r64    rex=W opcode=0xF3,0x0F,0x2D modrm=dst_reg,src_reg ; [AI_HINT: Convert Float32 to Int64]
+cvtss2si.r64.r64    rex=W opcode=0xF3,0x0F,0x2D modrm=dst_reg,src_reg ; [AI_HINT: Convert Float32 to Int64 (Round)]
+cvttss2si.r64.r64   rex=W opcode=0xF3,0x0F,0x2C modrm=dst_reg,src_reg ; [AI_HINT: Convert Float32 to Int64 (Truncate)]

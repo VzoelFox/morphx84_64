@@ -1,0 +1,60 @@
+ambil aritmatika.fox
+ambil io.fox
+
+fungsi print_float
+    ; Input: xmm0 (float value)
+    ; Output: None
+    ; Prints "int.frac"
+
+    push rax
+    push rbx
+    push rdx
+    push rcx
+    push rdi
+
+    ; 1. Truncate to Int
+    cvttss2si rax, xmm0
+
+    ; Save Integer part for subtraction later
+    push rax
+
+    ; Print Integer part
+    mov rdi, rax
+    call print_decimal
+
+    ; 2. Print Dot
+    mov rax, 46 ; '.'
+    call print_char_rax
+
+    ; 3. Get Fractional Part
+    ; frac = val - int(val)
+    pop rax ; Restore Int
+    cvtsi2ss xmm1, rax ; int to float
+    subss xmm0, xmm1 ; xmm0 = frac
+
+    ; 4. Multiply by 10000 (Precision 4 digits)
+    ; Load 10000.0
+    mov rax, 10000
+    cvtsi2ss xmm1, rax
+    mulss xmm0, xmm1
+
+    ; 5. Convert to Int
+    cvttss2si rax, xmm0
+
+    ; Handle negative frac
+    cmp rax, 0
+    jika_negatif
+        neg rax
+    tutup_jika
+
+    ; Print Frac
+    mov rdi, rax
+    call print_decimal
+
+    pop rdi
+    pop rcx
+    pop rdx
+    pop rbx
+    pop rax
+    ret
+tutup_fungsi
