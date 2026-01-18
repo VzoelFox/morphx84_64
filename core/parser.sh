@@ -64,6 +64,11 @@ STRUCT_OFFSET=0
 # Unit / Namespace Management
 CURRENT_UNIT=""
 
+# IntentTree Construction (Buffer for Auto-Gen Code)
+INTENT_INIT_CODE_FILE="intent_init.tmp"
+INTENT_ACTIVE_UNIT=""
+INTENT_ACTIVE_SHARD=""
+
 # Deduplication Map
 declare -A INCLUDED_FILES
 
@@ -770,6 +775,7 @@ process_module() {
 
     # Scan for Unit Definition first
     local my_unit="$parent_unit"
+    local unit_line_found=0
     for line in "${tagger_lines[@]}"; do
          local clean_line=$(echo "$line" | sed 's/^[ \t]*//;s/[ \t]*$//')
          local lc_line=${clean_line,,}
@@ -777,6 +783,18 @@ process_module() {
              local val=${clean_line#*:}
              my_unit=$(echo "$val" | sed 's/^[ \t]*//;s/[ \t]*$//')
              log "Unit found: $my_unit"
+
+             # If this is the Root Intent Tree (e.g. MyService), we Init it.
+             # Only if we are not MorphLib
+             if [[ "$my_unit" != "MorphLib" ]]; then
+                 INTENT_ACTIVE_UNIT="$my_unit"
+                 # Emit: routine_init_unit(123)
+                 echo "mov rdi, 1" >> "$INTENT_INIT_CODE_FILE" # ID=1
+                 echo "call MorphLib_routine_init_unit" >> "$INTENT_INIT_CODE_FILE"
+                 echo "mov r13, rax" >> "$INTENT_INIT_CODE_FILE" # Save Unit Ptr in r13 (Avoid r15 Heap Root)
+             fi
+
+             unit_line_found=1
              break
          fi
     done
@@ -794,6 +812,73 @@ process_module() {
 
         # Skip Unit line
         if [[ "$lc_line" == unit:* ]]; then continue; fi
+
+        # --- SHARD ---
+        if [[ "$lc_line" == shard:* ]]; then
+            if [[ -z "$INTENT_ACTIVE_UNIT" ]]; then log "Error: Shard outside Unit"; exit 1; fi
+            local shard_name=${clean_line#*:}
+            shard_name=$(echo "$shard_name" | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+            # Emit: routine_init_shard(456)
+            echo "mov rdi, 2" >> "$INTENT_INIT_CODE_FILE" # ID=2
+            echo "call MorphLib_routine_init_shard" >> "$INTENT_INIT_CODE_FILE"
+            echo "mov r14, rax" >> "$INTENT_INIT_CODE_FILE" # Save Shard Ptr in r14
+
+            # Add Shard to Unit
+            echo "mov rdi, r13" >> "$INTENT_INIT_CODE_FILE" # Use r13 (Unit Ptr)
+            echo "mov rsi, r14" >> "$INTENT_INIT_CODE_FILE"
+            echo "call MorphLib_routine_add_shard" >> "$INTENT_INIT_CODE_FILE"
+
+            INTENT_ACTIVE_SHARD="$shard_name"
+            continue
+        fi
+
+        # --- FRAGMENT ---
+        # Syntax: Fragment: name -> Ambil file.fox
+        if [[ "$lc_line" == fragment:* ]]; then
+             if [[ -z "$INTENT_ACTIVE_SHARD" ]]; then log "Error: Fragment outside Shard"; exit 1; fi
+
+             # Split "name -> Ambil file"
+             local rest=${clean_line#*:}
+             local frag_name=$(echo "$rest" | awk -F'->' '{print $1}' | sed 's/^[ \t]*//;s/[ \t]*$//')
+             local action=$(echo "$rest" | awk -F'->' '{print $2}' | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+             # Process Action (Ambil)
+             local frag_target=""
+             local lc_action=${action,,}
+             if [[ "$lc_action" == ambil* ]]; then
+                 local target=$(echo "$action" | awk '{$1=""; print $0}' | sed 's/^[ \t]*//')
+                 local full_target="$dir/$target"
+
+                 # Process File
+                 if [[ -d "$full_target" ]]; then
+                     process_module "$full_target" "$my_unit"
+                     # Assumption: Module has entry point? Not supported yet.
+                 else
+                     if [[ -f "$full_target" ]]; then process_file "$full_target";
+                     elif [[ -f "$full_target.fox" ]]; then process_file "$full_target.fox";
+                     fi
+                 fi
+
+                 # Fragment Target Function is "Unit_FragName"
+                 frag_target="${my_unit}_${frag_name}"
+             else
+                 log "Error: Unknown fragment action '$action'"
+                 exit 1
+             fi
+
+             # Emit: routine_init_fragment(ptr, ctx)
+             echo "mov rdi, $frag_target" >> "$INTENT_INIT_CODE_FILE"
+             echo "mov rsi, 0" >> "$INTENT_INIT_CODE_FILE"
+             echo "call MorphLib_routine_init_fragment" >> "$INTENT_INIT_CODE_FILE"
+
+             # Add Fragment to Shard
+             echo "mov rdi, r14" >> "$INTENT_INIT_CODE_FILE"
+             echo "mov rsi, rax" >> "$INTENT_INIT_CODE_FILE"
+             echo "call MorphLib_routine_add_fragment" >> "$INTENT_INIT_CODE_FILE"
+
+             continue
+        fi
 
         if [[ "$lc_line" == ambil* ]]; then
              local target=$(echo "$clean_line" | awk '{$1=""; print $0}' | sed 's/^[ \t]*//')
@@ -830,6 +915,7 @@ COMBINED_FILE="combined_input.tmp"
 
 # Clear combined file
 > "$COMBINED_FILE"
+> "$INTENT_INIT_CODE_FILE"
 
 # 1. Load ISA
 load_isa
@@ -837,6 +923,19 @@ load_isa
 # 2. Process Dependencies (Root Tagger + Input File)
 process_module "." "" # Start with no unit
 process_file "$INPUT_FILE"
+
+# 3. Inject Auto-Generated Init Function
+echo "" >> "$COMBINED_FILE"
+echo "fungsi _auto_init_intent_tree" >> "$COMBINED_FILE"
+cat "$INTENT_INIT_CODE_FILE" >> "$COMBINED_FILE"
+# If we built a tree, return the Root Unit Ptr (r13)
+if [[ -s "$INTENT_INIT_CODE_FILE" ]]; then
+    echo "mov rax, r13" >> "$COMBINED_FILE"
+else
+    echo "mov rax, 0" >> "$COMBINED_FILE"
+fi
+echo "ret" >> "$COMBINED_FILE"
+echo "tutup_fungsi" >> "$COMBINED_FILE"
 
 log "PASS 1: Scanning Labels..."
 PASS=1; init_output
@@ -847,7 +946,7 @@ PASS=2; init_output
 while IFS= read -r line; do compile_line "$line"; done < "$COMBINED_FILE"
 
 # Cleanup
-rm -f "$COMBINED_FILE"
+rm -f "$COMBINED_FILE" "$INTENT_INIT_CODE_FILE"
 
 chmod +x "$OUTPUT_FILE"
 log "Success: $OUTPUT_FILE"

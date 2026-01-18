@@ -1,4 +1,49 @@
-call main
+call MorphLib_heap_init
+call MorphLib_daemon_init
+
+; Debug 1
+mov rax, 0x0A31474244 ; "DBG1\n"
+push rax
+mov rdi, 1
+mov rsi, rsp
+mov rdx, 5
+call MorphLib_sys_write
+pop rax
+
+; Auto-build Intent Tree from tagger.fox definitions
+call _auto_init_intent_tree
+mov r13, rax ; r13 = Root Unit Ptr (Avoid r15 Heap Root)
+
+; Debug 2: Print Pointer Value (simplified check)
+cmp r13, 0
+jika_sama
+    mov rax, 0x0A4C4C554E ; "NULL\n"
+    push rax
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 5
+    call MorphLib_sys_write
+    pop rax
+lainnya
+    mov rax, 0x0A4B4F ; "OK\n"
+    push rax
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 3
+    call MorphLib_sys_write
+    pop rax
+tutup_jika
+
+cmp r13, 0
+jika_sama
+    ; Fallback: Traditional Main
+    call main
+lainnya
+    ; Modern: Run Unit
+    mov rdi, r13
+    call MorphLib_routine_run_unit
+tutup_jika
+
 mov rax, 60
 mov rdi, 0
 syscall

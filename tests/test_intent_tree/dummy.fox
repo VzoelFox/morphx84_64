@@ -1,0 +1,6 @@
+fungsi main
+  ; Dummy main to satisfy parser resolution
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi

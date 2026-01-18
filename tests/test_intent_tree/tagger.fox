@@ -1,0 +1,7 @@
+Unit: TestIntent
+
+Ambil ../../morphlib
+
+Shard: MainShard
+    Fragment: frag_step_1 -> Ambil step1.fox
+    Fragment: frag_step_2 -> Ambil step2.fox
