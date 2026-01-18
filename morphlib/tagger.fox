@@ -9,3 +9,6 @@ Ambil io.fox
 Ambil string.fox
 Ambil hashmap.fox
 Ambil jaringan.fox
+Ambil buffer.fox
+Ambil string_ext.fox
+Ambil float.fox
