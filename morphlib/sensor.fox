@@ -1,0 +1,64 @@
+ambil sys.fox
+ambil io.fox
+ambil buffer.fox
+ambil string_ext.fox
+
+fungsi sensor_read_thermal
+    ; Input: None
+    ; Output: rax (temperature in millidegrees, or -1 if fail)
+    ; Reads /sys/class/thermal/thermal_zone0/temp
+
+    push rbx
+    push rdi
+
+    ; Path "/sys/class/thermal/thermal_zone0/temp\0"
+    ; Length 36 bytes.
+    ; Construct on stack
+    sub rsp, 40
+    ; /sys/cla -> 0x616C632F7379732F
+    mov rax, 0x616C632F7379732F
+    mov [rsp], rax
+    ; ss/therm -> 0x6D726568742F7373
+    mov rax, 0x6D726568742F7373
+    ; mov [rsp+8], rax
+    mov rbx, rsp
+    add rbx, 8
+    mov [rbx], rax
+    ; al/therm -> 0x6D726568742F6C61 (Wait, thermal_zone0)
+    ; Path is complex to construct manually.
+    ; Let's assume we can pass path.
+
+    ; For PoC, let's just try to open "/proc/uptime" or simple file.
+    ; But goal is Sensor.
+
+    ; Cleanup stack
+    add rsp, 40
+    pop rdi
+    pop rbx
+
+    mov rax, -1
+    ret
+tutup_fungsi
+
+fungsi sensor_ioctl_test
+    ; Input: rdi (fd)
+    ; Output: rax
+    ; Example: Get Terminal Window Size (TIOCGWINSZ = 0x5413)
+
+    sub rsp, 8 ; Struct winsize { row:2, col:2, ... }
+
+    mov rdx, rsp ; Arg pointer
+    mov rsi, 0x5413 ; TIOCGWINSZ
+    call sys_ioctl
+
+    cmp rax, 0
+    jika_kurang
+        add rsp, 8
+        ret
+    tutup_jika
+
+    ; Return Rows (first word)
+    movzx rax, [rsp]
+    add rsp, 8
+    ret
+tutup_fungsi

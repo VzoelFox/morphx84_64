@@ -19,6 +19,7 @@ movb.mem.r64        opcode=0x88 modrm=mem,reg         ; [AI_HINT: Tulis byte (lo
 movzx.r64.r64       rex=W opcode=0x0F,0xB6 modrm=reg,reg ; [AI_HINT: Salin byte ke register 64-bit dengan nol (Zero Extend)]
 movzx.r64.byte      rex=W opcode=0x0F,0xB6 modrm=reg,reg ; [AI_HINT: Alias]
 movzx.r64.mem       rex=W opcode=0x0F,0xB6 modrm=reg,mem ; [AI_HINT: Baca byte memori ke register 64-bit dengan nol]
+movzx.r64.mem16     rex=W opcode=0x0F,0xB7 modrm=reg,mem ; [AI_HINT: Baca word (16-bit) memori ke register 64-bit dengan nol]
 
 ; Sign Extend (Signed)
 movsx.r64.r64       rex=W opcode=0x0F,0xBE modrm=reg,reg ; [AI_HINT: Salin byte ke register 64-bit dengan tanda (Sign Extend)]
