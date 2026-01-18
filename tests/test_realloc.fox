@@ -1,5 +1,5 @@
 fungsi main
-    call heap_init
+    call MorphLib_heap_init
 
     ; Debug: Start
     mov rax, 0x0A41
@@ -7,12 +7,12 @@ fungsi main
     mov rdi, 1
     mov rsi, rsp
     mov rdx, 2
-    call sys_write
+    call MorphLib_sys_write
     pop rax
 
     ; 1. Alloc 16 bytes
     mov rdi, 16
-    call mem_alloc
+    call MorphLib_mem_alloc
     mov r12, rax ; Save ptr
 
     ; 2. Write pattern "AAAA"
@@ -22,7 +22,7 @@ fungsi main
     ; 3. Realloc to 64 bytes
     mov rdi, r12
     mov rsi, 64
-    call mem_realloc
+    call MorphLib_mem_realloc
     mov r13, rax ; New ptr
 
     ; 4. Check if data is preserved
@@ -36,7 +36,7 @@ fungsi main
         push rbx
         mov rsi, rsp
         mov rdx, 5
-        call sys_write
+        call MorphLib_sys_write
         pop rbx
     lainnya
         mov rdi, 1
@@ -45,10 +45,10 @@ fungsi main
         push rbx
         mov rsi, rsp
         mov rdx, 5
-        call sys_write
+        call MorphLib_sys_write
         pop rbx
     tutup_jika
 
     mov rdi, 0
-    call sys_exit
+    call MorphLib_sys_exit
 tutup_fungsi
