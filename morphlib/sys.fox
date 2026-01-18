@@ -82,6 +82,22 @@ fungsi sys_setsockopt
     ret
 tutup_fungsi
 
+fungsi sys_ioctl
+    ; Input: rdi (fd), rsi (request), rdx (arg)
+    ; Output: rax (result or error)
+    mov rax, 16
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_nanosleep
+    ; Input: rdi (req struct), rsi (rem struct)
+    ; Output: rax (0 or error)
+    mov rax, 35
+    syscall
+    ret
+tutup_fungsi
+
 fungsi sys_write
     ; Input: rdi (fd), rsi (buf), rdx (len)
     ; Output: rax (bytes written or error)

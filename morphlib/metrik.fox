@@ -1,0 +1,21 @@
+ambil sys.fox
+
+fungsi metrik_now
+    ; Input: None
+    ; Output: rax (64-bit TSC value)
+    ; Clobbers: rdx
+
+    ; Serialize instruction stream to ensure measurement accuracy
+    ; cpuid
+    ; But cpuid clobbers rax, rbx, rcx, rdx.
+    ; Maybe just lfence (if SSE2)? Or just rdtsc for now.
+    ; Brainlib has lfence.
+    ; lfence
+
+    rdtsc
+    ; Result in EDX:EAX
+    ; Combine into RAX
+    shl rdx, 32
+    or rax, rdx
+    ret
+tutup_fungsi
