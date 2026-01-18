@@ -1,0 +1,11 @@
+fungsi frag_step_2
+    mov rdi, 1
+    ; "Step2\n"
+    mov rbx, 0x0A3270657453
+    push rbx
+    mov rsi, rsp
+    mov rdx, 6
+    call MorphLib_sys_write
+    pop rbx
+    ret
+tutup_fungsi
