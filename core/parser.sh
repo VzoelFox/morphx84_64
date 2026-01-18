@@ -57,6 +57,10 @@ declare -a STACK_ELSE
 STACK_PTR=0
 BLOCK_COUNTER=0
 
+# Struct Management
+STRUCT_NAME=""
+STRUCT_OFFSET=0
+
 # Deduplication Map
 declare -A INCLUDED_FILES
 
@@ -113,7 +117,7 @@ emit_dword() { # 4 bytes
     if ! is_imm "$val"; then
         local target=${LABELS["$val"]}
         if [[ -n "$target" ]]; then
-            val=$((BASE_ADDR + target))
+            val=$target
         elif [[ $PASS -eq 2 ]]; then
             log "Error: Label '$val' not found"
             exit 1
@@ -137,7 +141,7 @@ emit_qword() { # 8 bytes
     if ! is_imm "$val"; then
         local target=${LABELS["$val"]}
         if [[ -n "$target" ]]; then
-            val=$((BASE_ADDR + target))
+            val=$target
         elif [[ $PASS -eq 2 ]]; then
             log "Error: Label '$val' not found"
             exit 1
@@ -271,13 +275,22 @@ handle_structure() {
     if [[ "$type" == "scope_start" ]]; then
         local id=""
 
+        # STRUKTUR Special Case
+        if [[ "$scope" == "STRUKTUR" ]]; then
+            local name=${args%%(*}
+            STRUCT_NAME="$name"
+            STRUCT_OFFSET=0
+            stack_push "$scope" "$name"
+            return
+        fi
+
         # FUNGSI Special Case (Arguments as Name)
         if [[ "$scope" == "FUNGSI" ]]; then
             local name=${args%%(*}
             name=${name%%:*}
             id="$name"
             if [[ $PASS -eq 1 ]]; then
-                LABELS["$name"]=$CURRENT_OFFSET
+                LABELS["$name"]=$((BASE_ADDR + CURRENT_OFFSET))
                 log "Fungsi: $name -> $CURRENT_OFFSET"
             elif [[ $PASS -eq 2 ]]; then
                 local addr=$((BASE_ADDR + CURRENT_OFFSET))
@@ -310,6 +323,13 @@ handle_structure() {
         if [[ "$POP_TYPE" != "$scope" ]]; then
             log "Error: Structure mismatch. Expected $scope, found $POP_TYPE (ID: $POP_ID)"
             exit 1
+        fi
+
+        if [[ "$scope" == "STRUKTUR" ]]; then
+             # Define SIZE constant
+             compile_line "const ${POP_ID}_SIZE $STRUCT_OFFSET"
+             STRUCT_NAME=""
+             return
         fi
 
         if [[ "$action" == "ret" ]]; then
@@ -370,6 +390,32 @@ compile_line() {
     local mnemonic=$(echo "$line" | awk '{print $1}')
     local args=$(echo "$line" | cut -d' ' -f2-)
 
+    # Prop Directive (Inside Struktur)
+    if [[ "$mnemonic" == "prop" ]]; then
+        if [[ -z "$STRUCT_NAME" ]]; then log "Error: 'prop' outside 'struktur'"; exit 1; fi
+        local prop_name=$(echo "$args" | awk '{print $1}')
+        local prop_size=$(echo "$args" | awk '{print $2}')
+
+        # Define Constant: STRUCT_PROP = OFFSET
+        compile_line "const ${STRUCT_NAME}_${prop_name} $STRUCT_OFFSET"
+
+        STRUCT_OFFSET=$((STRUCT_OFFSET + prop_size))
+        return
+    fi
+
+    # Const Directive (Define Constant Value)
+    if [[ "$mnemonic" == "const" ]]; then
+        local const_name=$(echo "$args" | awk '{print $1}')
+        local const_val=$(echo "$args" | awk '{print $2}')
+
+        if [[ $PASS -eq 1 ]]; then
+            # Store directly in LABELS.
+            # This overrides address mapping if name conflicts.
+            LABELS["$const_name"]=$const_val
+        fi
+        return
+    fi
+
     # Data Directive (String Literal)
     if [[ "$mnemonic" == "data" ]]; then
         local content=$(echo "$line" | cut -d'"' -f2)
@@ -403,7 +449,7 @@ compile_line() {
     if [[ "$mnemonic" == *":" ]]; then
         local name=${mnemonic%:}
         if [[ $PASS -eq 1 ]]; then
-            LABELS["$name"]=$CURRENT_OFFSET
+            LABELS["$name"]=$((BASE_ADDR + CURRENT_OFFSET))
         elif [[ $PASS -eq 2 ]]; then
             # Write to Symbol Map: Address Name
             local addr=$((BASE_ADDR + CURRENT_OFFSET))
@@ -580,7 +626,8 @@ compile_line() {
             if [[ $PASS -eq 2 ]]; then
                 local target=${LABELS["$label"]}
                 if [[ -z "$target" ]]; then log "Error: Label '$label' not found"; exit 1; fi
-                local rel=$((target - (CURRENT_OFFSET + 4)))
+                local pc=$((BASE_ADDR + CURRENT_OFFSET + 4))
+                local rel=$((target - pc))
                 emit_dword $rel
             else
                 emit_dword 0

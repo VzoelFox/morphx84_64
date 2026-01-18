@@ -1,0 +1,168 @@
+ambil alloc.fox
+
+struktur Buffer
+    prop data 8
+    prop size 8
+    prop capacity 8
+tutup_struktur
+
+fungsi buf_create
+    ; Input: rdi (initial_capacity)
+    ; Output: rax (Buffer*)
+
+    push rdi
+
+    ; Alloc struct
+    mov rdi, Buffer_SIZE
+    call mem_alloc
+    push rax
+
+    ; Alloc data
+    pop rax
+    pop rdi ; capacity
+
+    push rax ; save struct
+    push rdi ; save capacity
+
+    call mem_alloc
+    ; rax = data_ptr
+
+    pop rdi ; capacity
+    pop rbx ; struct ptr
+
+    ; mov [rbx + Buffer_data], rax
+    push rbx
+    add rbx, Buffer_data
+    mov [rbx], rax
+    pop rbx
+
+    ; mov [rbx + Buffer_capacity], rdi
+    push rbx
+    add rbx, Buffer_capacity
+    mov [rbx], rdi
+    pop rbx
+
+    ; mov qword [rbx + Buffer_size], 0
+    push rbx
+    add rbx, Buffer_size
+    mov [rbx], 0
+    pop rbx
+
+    mov rax, rbx
+    ret
+tutup_fungsi
+
+fungsi buf_push_byte
+    ; Input: rdi (Buffer*), rsi (byte)
+    ; Output: None
+
+    push rbx ; Preserve RBX
+    push rdi
+    push rsi
+
+    ; Check capacity
+    ; mov rax, [rdi + Buffer_size]
+    push rdi
+    add rdi, Buffer_size
+    mov rax, [rdi]
+    pop rdi
+
+    ; mov rcx, [rdi + Buffer_capacity]
+    push rdi
+    add rdi, Buffer_capacity
+    mov rcx, [rdi]
+    pop rdi
+
+    cmp rax, rcx
+    jika_kurang
+        ; OK
+        jmp .L_buf_write
+    tutup_jika
+
+    ; Grow
+    ; new_cap = cap * 2
+    mov rax, rcx
+    add rax, rcx
+    push rax ; new_cap
+
+    ; mov rdi, [rdi + Buffer_data]
+    push rdi
+    add rdi, Buffer_data
+    mov rdi, [rdi] ; Load data ptr
+
+    mov rsi, rax ; new_cap
+
+    call mem_realloc
+    ; rax = new data
+
+    pop rcx ; new_cap
+
+    ; Restore Buffer* from stack (at [rsp+8])
+    ; Stack: [rsi, rdi, rbx, ret] -> rdi is at +8
+    mov rbx, rsp
+    add rbx, 8
+    mov rbx, [rbx]
+
+    ; Update data and capacity
+    ; mov [rbx + Buffer_data], rax
+    push rbx
+    add rbx, Buffer_data
+    mov [rbx], rax
+    pop rbx
+
+    ; mov [rbx + Buffer_capacity], rcx
+    push rbx
+    add rbx, Buffer_capacity
+    mov [rbx], rcx
+    pop rbx
+
+    ; Fall through to write
+
+    .L_buf_write:
+    pop rsi
+    pop rdi
+
+    ; mov rax, [rdi + Buffer_size]
+    push rdi
+    add rdi, Buffer_size
+    mov rax, [rdi]
+    pop rdi
+
+    ; mov rbx, [rdi + Buffer_data]
+    push rdi
+    add rdi, Buffer_data
+    mov rbx, [rdi]
+    pop rdi
+
+    ; Write byte at [data + size]
+    add rbx, rax
+    mov r11, rsi
+    movb [rbx], r11
+
+    ; Inc size
+    inc rax
+    ; mov [rdi + Buffer_size], rax
+    push rdi
+    add rdi, Buffer_size
+    mov [rdi], rax
+    pop rdi
+
+    pop rbx ; Restore RBX
+    ret
+tutup_fungsi
+
+fungsi buf_free
+    ; Input: rdi (Buffer*)
+    push rdi
+
+    ; mov rdi, [rdi + Buffer_data]
+    push rdi
+    add rdi, Buffer_data
+    mov rdi, [rdi]
+    call mem_free
+    pop rdi ; Buffer* (was pushed for arithmetic)
+
+    pop rdi ; Original Buffer*
+    call mem_free
+    ret
+tutup_fungsi
