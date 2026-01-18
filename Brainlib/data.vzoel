@@ -11,6 +11,7 @@ mov.r64.imm32       rex=W opcode=0xC7 modrm=0 imm32   ; [AI_HINT: Salin angka 32
 mov.r64.mem         rex=W opcode=0x8B modrm=reg,mem   ; [AI_HINT: Baca dari memori ke register]
 mov.mem.r64         rex=W opcode=0x89 modrm=mem,reg   ; [AI_HINT: Tulis register ke memori]
 mov.mem.imm32       rex=W opcode=0xC7 modrm=0 imm32   ; [AI_HINT: Tulis angka 32-bit ke memori]
+movb.mem.r64        opcode=0x88 modrm=mem,reg         ; [AI_HINT: Tulis byte (low 8-bit) register ke memori]
 
 ; Move with Extension (Penting untuk konversi tipe data)
 ; Zero Extend (Unsigned)
@@ -43,3 +44,7 @@ lea.r64.mem         rex=W opcode=0x8D modrm=reg,mem ; [AI_HINT: Hitung alamat ef
 
 ; Exchange
 xchg.r64.r64        rex=W opcode=0x87 modrm=reg,reg ; [AI_HINT: Tukar isi dua register]
+
+; --- Morph Structure Definitions (Data) ---
+struktur            kind=struct type=scope_start scope=STRUKTUR
+tutup_struktur      kind=struct type=scope_end scope=STRUKTUR

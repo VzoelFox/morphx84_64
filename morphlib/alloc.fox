@@ -139,6 +139,90 @@ fungsi mem_alloc
     ret
 tutup_fungsi
 
+fungsi mem_realloc
+    ; Input: rdi (ptr), rsi (new_size)
+    ; Output: rax (new_ptr)
+
+    ; If ptr is 0, behave like malloc
+    cmp rdi, 0
+    jika_nol
+        mov rdi, rsi
+        call mem_alloc
+        ret
+    tutup_jika
+
+    ; If size is 0, behave like free
+    cmp rsi, 0
+    jika_nol
+        call mem_free
+        mov rax, 0
+        ret
+    tutup_jika
+
+    ; Calculate old size from header (ptr - 32)
+    ; Header: [prev:8][next:8][size:8][magic:8]
+    mov rdx, rdi
+    sub rdx, 32
+
+    ; Access [rdx + 16] manually
+    push rdx
+    add rdx, 16
+    mov rcx, [rdx] ; Size is at offset 16
+    pop rdx
+
+    ; Wait, alloc.fox:
+    ; mov [rax + 16], rsi (size)
+    ; mov [rax + 24], 0x28062004 (magic)
+    ; Yes, offset 16 is size.
+
+    ; Determine copy size (min(old_size, new_size))
+    cmp rcx, rsi
+    cmova rcx, rsi ; if old > new, copy new. else copy old.
+
+    ; Alloc new block
+    push rdi ; Save old ptr
+    push rcx ; Save copy size
+    push rsi ; Save new size
+
+    mov rdi, rsi
+    call mem_alloc
+
+    ; Stack: [rsi(new), rcx(copy), rdi(old), ret]
+    ; Recover for copy
+    pop rsi ; ignore new size
+    pop rcx ; copy size
+    pop rsi ; old ptr (into rsi for movs)
+
+    ; Check alloc success
+    cmp rax, 0
+    jika_nol
+        ; Failed. Return 0. Old block untouched.
+        ret
+    tutup_jika
+
+    ; Copy data: dest(rdi)=rax, src(rsi)=old_ptr, len(rcx)=copy_size
+    push rax ; Save new ptr
+    mov rdi, rax
+    ; rsi is already old ptr
+    ; rcx is already copy size
+    cld
+    rep movsb
+
+    ; Free old ptr
+    pop rax ; new ptr
+    push rax ; save again
+
+    ; Old ptr is needed for free. But we popped it into rsi?
+    ; Wait. Stack before copy: [rsi(old), ret].
+    ; "pop rsi ; old ptr".
+    ; So old ptr is in rsi.
+    mov rdi, rsi
+    call mem_free
+
+    pop rax ; Return new ptr
+    ret
+tutup_fungsi
+
 fungsi mem_free
     ; Input: rdi (ptr to payload)
 
