@@ -1,0 +1,56 @@
+L_FILENAME:
+  data "tests/hello.fox\0"
+
+fungsi Start
+    ; Print Banner
+    mov rax, 0x0A312E307620786F ; "ox v0.1\n"
+    push rax
+    mov rax, 0x462072656C69706D ; "mpiler F"
+    push rax
+    mov rax, 0x6F43 ; "Co"
+    push rax
+
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 18
+    call MorphLib_sys_write
+
+    add rsp, 24 ; Cleanup stack
+
+    ; Init Lexer
+    mov rdi, Compiler_L_FILENAME
+    call Compiler_lexer_new
+
+    cmp rax, 0
+    jika_sama
+        ; Error opening file
+        mov rax, 0x0A4C494146 ; "FAIL\n"
+        push rax
+        mov rdi, 1
+        mov rsi, rsp
+        mov rdx, 5
+        call MorphLib_sys_write
+        pop rax
+        ret
+    tutup_jika
+
+    mov r12, rax ; Lexer Ptr
+
+    ; Loop Tokens
+    loop token_loop
+        mov rdi, r12
+        call Compiler_lexer_next_token
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+             henti
+        tutup_jika
+
+        ; Print Token Type (Int)
+        mov rdi, rax
+        call MorphLib_print_decimal
+        call MorphLib_print_newline
+    tutup_loop
+
+    ret
+tutup_fungsi

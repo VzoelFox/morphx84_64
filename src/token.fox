@@ -1,0 +1,16 @@
+; --- Token Types ---
+const TOKEN_EOF 0
+const TOKEN_UNKNOWN 1
+const TOKEN_KEYWORD 2
+const TOKEN_IDENTIFIER 3
+const TOKEN_NUMBER 4
+const TOKEN_SYMBOL 5
+const TOKEN_STRING 6
+
+; --- File Flags ---
+const O_RDONLY 0
+const O_WRONLY 1
+const O_RDWR 2
+
+; --- Buffer Sizes ---
+const MAX_SOURCE_SIZE 102400 ; 100KB Limit for now

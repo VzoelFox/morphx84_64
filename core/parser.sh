@@ -866,6 +866,7 @@ get_abs_path() {
 
 process_file() {
     local filepath="$1"
+    local current_unit="$2"
     local abs_path=$(get_abs_path "$filepath")
 
     if [[ -n "${INCLUDED_FILES[$abs_path]}" ]]; then
@@ -895,7 +896,12 @@ process_file() {
 
             # Resolve relative to current file's directory
             local target_path="$dir/$target"
-            process_file "$target_path"
+
+            if [[ -d "$target_path" ]]; then
+                 process_module "$target_path" "$current_unit"
+            else
+                 process_file "$target_path" "$current_unit"
+            fi
         else
             # Normal line, append to combined
             echo "$line" >> "$COMBINED_FILE"
@@ -1007,8 +1013,8 @@ process_module() {
                      process_module "$full_target" "$my_unit"
                      # Assumption: Module has entry point? Not supported yet.
                  else
-                     if [[ -f "$full_target" ]]; then process_file "$full_target";
-                     elif [[ -f "$full_target.fox" ]]; then process_file "$full_target.fox";
+                     if [[ -f "$full_target" ]]; then process_file "$full_target" "$my_unit";
+                     elif [[ -f "$full_target.fox" ]]; then process_file "$full_target.fox" "$my_unit";
                      fi
                  fi
 
@@ -1039,10 +1045,10 @@ process_module() {
              if [[ -d "$full_target" ]]; then
                  process_module "$full_target" "$my_unit"
              elif [[ -f "$full_target" ]]; then
-                 process_file "$full_target"
+                 process_file "$full_target" "$my_unit"
              else
                  if [[ -f "$full_target.fox" ]]; then
-                     process_file "$full_target.fox"
+                     process_file "$full_target.fox" "$my_unit"
                  else
                      log "Error: Target '$full_target' not found in '$tagger'."
                      exit 1
@@ -1074,7 +1080,7 @@ load_isa
 
 # 2. Process Dependencies (Root Tagger + Input File)
 process_module "." "" # Start with no unit
-process_file "$INPUT_FILE"
+process_file "$INPUT_FILE" ""
 
 # 3. Inject Auto-Generated Init Function
 echo "" >> "$COMBINED_FILE"
