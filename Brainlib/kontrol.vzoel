@@ -143,6 +143,23 @@ tutup_loop          kind=struct type=scope_end scope=LOOP action=jump_start
 selama              kind=struct type=scope_start scope=SELAMA action=label_start
 tutup_selama        kind=struct type=scope_end scope=SELAMA action=jump_start
 
+; Conditional While Loops (Selama) - Inverse Logic
+selama_sama           kind=struct type=scope_start scope=SELAMA jump_condition=jne
+selama_beda           kind=struct type=scope_start scope=SELAMA jump_condition=je
+selama_bukan_nol      kind=struct type=scope_start scope=SELAMA jump_condition=je
+selama_lebih          kind=struct type=scope_start scope=SELAMA jump_condition=jle
+selama_kurang         kind=struct type=scope_start scope=SELAMA jump_condition=jge
+selama_lebih_sama     kind=struct type=scope_start scope=SELAMA jump_condition=jl
+selama_kurang_sama    kind=struct type=scope_start scope=SELAMA jump_condition=jg
+selama_positif        kind=struct type=scope_start scope=SELAMA jump_condition=js
+selama_negatif        kind=struct type=scope_start scope=SELAMA jump_condition=jns
+selama_nol            kind=struct type=scope_start scope=SELAMA jump_condition=jne
+
+selama_diatas         kind=struct type=scope_start scope=SELAMA jump_condition=jbe
+selama_dibawah        kind=struct type=scope_start scope=SELAMA jump_condition=jae
+selama_diatas_sama    kind=struct type=scope_start scope=SELAMA jump_condition=jb
+selama_dibawah_sama   kind=struct type=scope_start scope=SELAMA jump_condition=ja
+
 ; Kontrol Alur
 henti               kind=struct type=flow_control action=break
 lanjut              kind=struct type=flow_control action=continue
