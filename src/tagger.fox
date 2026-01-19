@@ -1,0 +1,7 @@
+Unit: Compiler
+
+Shard: Init
+Fragment: Start -> Ambil main.fox
+
+Ambil token.fox
+Ambil lexer.fox

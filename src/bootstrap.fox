@@ -1,0 +1,6 @@
+Ambil .
+
+fungsi main
+    ; Dummy main to satisfy linker
+    ret
+tutup_fungsi

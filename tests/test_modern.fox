@@ -1,0 +1,37 @@
+fungsi main
+    ; Test 1: One-line prefix
+    ; Setup valid pointers for movsb to avoid crash
+    mov rsi, rsp
+    mov rdi, rsp
+    add rdi, 10 ; Offset dest
+    mov rcx, 5
+    rep movsb
+
+    ; Test 2: Conditional While
+    mov rbx, 0
+    selama_kurang rbx, 5
+        inc rbx
+    tutup_selama
+
+    ; Verify result
+    cmp rbx, 5
+    jika_sama
+        mov rax, 0x0A4B4F ; "OK\n"
+        push rax
+        mov rdi, 1
+        mov rsi, rsp
+        mov rdx, 3
+        call MorphLib_sys_write
+        pop rax
+    lainnya
+        mov rax, 0x0A4C494146 ; "FAIL\n"
+        push rax
+        mov rdi, 1
+        mov rsi, rsp
+        mov rdx, 5
+        call MorphLib_sys_write
+        pop rax
+    tutup_jika
+
+    ret
+tutup_fungsi
