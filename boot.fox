@@ -1,3 +1,4 @@
+finit
 call MorphLib_heap_init
 call MorphLib_daemon_init
 
