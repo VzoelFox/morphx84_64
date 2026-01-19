@@ -1,0 +1,159 @@
+; ELF64 Helper for Morph Runner
+
+fungsi elf_write_header
+    ; Input: rdi (fd), rsi (code_size)
+    ; Output: None
+
+    push rbx
+    push r12
+    mov r12, rdi ; Save FD
+    mov rbx, rsi ; Save Code Size
+
+    ; 1. e_ident (16 bytes)
+    ; Magic: 7F 45 4C 46 02 01 01 00 (Little Endian: 00 01 01 02 46 4C 45 7F)
+    mov rax, 0x00010102464C457F
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; Padding (8 bytes of 0)
+    mov rax, 0
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 2. e_type(2), e_machine(62), e_version(1)
+    ; Qword: 0x00000001003E0002
+    mov rax, 0x00000001003E0002
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 3. e_entry (0x400078)
+    mov rax, 0x400078
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 4. e_phoff (64)
+    mov rax, 64
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 5. e_shoff (0)
+    mov rax, 0
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 6. flags(4), ehsize(2), phentsize(2)
+    ; Qword: 0x0038004000000000
+    mov rax, 0x0038004000000000
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 7. phnum(2), shentsize(2), shnum(2), shstrndx(2)
+    ; Qword: 0x0000000000400001
+    mov rax, 0x0000000000400001
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; --- PROGRAM HEADER (56 bytes) ---
+
+    ; 1. p_type(1), p_flags(7)
+    ; Qword: 0x0000000700000001
+    mov rax, 0x0000000700000001
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 2. p_offset (0)
+    mov rax, 0
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 3. p_vaddr (0x400000)
+    mov rax, 0x400000
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 4. p_paddr (0x400000)
+    mov rax, 0x400000
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 5. p_filesz (Header + CodeSize)
+    mov rax, rbx
+    add rax, 120
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 6. p_memsz (Same)
+    mov rax, rbx
+    add rax, 120
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    ; 7. p_align (0x1000)
+    mov rax, 0x1000
+    push rax
+    mov rdi, r12
+    mov rsi, rsp
+    mov rdx, 8
+    call MorphLib_sys_write
+    pop rax
+
+    pop r12
+    pop rbx
+    ret
+tutup_fungsi

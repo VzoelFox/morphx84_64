@@ -176,3 +176,78 @@ fungsi sys_exit
     syscall
     ret
 tutup_fungsi
+
+fungsi sys_execve
+    ; Input: rdi (filename), rsi (argv), rdx (envp)
+    ; Output: rax (0 on success, error code on failure)
+    mov rax, 59
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_chmod
+    ; Input: rdi (filename), rsi (mode)
+    ; Output: rax (0 on success, error code on failure)
+    mov rax, 90
+    syscall
+    ret
+tutup_fungsi
+
+fungsi sys_init_startup
+    ; Input: rdi (argc), rsi (argv), rdx (envp)
+    ; Output: None (Stored in First Heap Block)
+
+    push rdi
+    push rsi
+    push rdx
+
+    ; Allocate 32 bytes (argc, argv, envp, padding)
+    mov rdi, 32
+    call MorphLib_mem_alloc
+    ; rax points to allocated block.
+    ; If this is the FIRST allocation after heap_init, it is stable at [r15+32].
+
+    pop rdx
+    pop rsi
+    pop rdi
+
+    ; Store argc at offset 0
+    mov [rax], rdi
+
+    ; Store argv at offset 8
+    mov r11, rax
+    add r11, 8
+    mov [r11], rsi
+
+    ; Store envp at offset 16
+    mov r11, rax
+    add r11, 16
+    mov [r11], rdx
+
+    ret
+tutup_fungsi
+
+fungsi sys_get_argc
+    ; Output: rax (argc)
+    ; Convention: First block is at r15 + 32
+    mov rax, r15
+    add rax, 32
+    mov rax, [rax]
+    ret
+tutup_fungsi
+
+fungsi sys_get_argv
+    ; Output: rax (char**)
+    mov rax, r15
+    add rax, 40
+    mov rax, [rax]
+    ret
+tutup_fungsi
+
+fungsi sys_get_envp
+    ; Output: rax (char**)
+    mov rax, r15
+    add rax, 48
+    mov rax, [rax]
+    ret
+tutup_fungsi
