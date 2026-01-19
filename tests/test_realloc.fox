@@ -1,0 +1,54 @@
+fungsi main
+    call MorphLib_heap_init
+
+    ; Debug: Start
+    mov rax, 0x0A41
+    push rax
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 2
+    call MorphLib_sys_write
+    pop rax
+
+    ; 1. Alloc 16 bytes
+    mov rdi, 16
+    call MorphLib_mem_alloc
+    mov r12, rax ; Save ptr
+
+    ; 2. Write pattern "AAAA"
+    mov rbx, 0x41414141
+    mov [r12], rbx
+
+    ; 3. Realloc to 64 bytes
+    mov rdi, r12
+    mov rsi, 64
+    call MorphLib_mem_realloc
+    mov r13, rax ; New ptr
+
+    ; 4. Check if data is preserved
+    mov rax, [r13]
+    mov rbx, 0x41414141
+    cmp rax, rbx
+    jika_sama
+        mov rdi, 1
+        ; "PASS\n"
+        mov rbx, 0x0A53534150
+        push rbx
+        mov rsi, rsp
+        mov rdx, 5
+        call MorphLib_sys_write
+        pop rbx
+    lainnya
+        mov rdi, 1
+        ; "FAIL\n"
+        mov rbx, 0x0A4C494146
+        push rbx
+        mov rsi, rsp
+        mov rdx, 5
+        call MorphLib_sys_write
+        pop rbx
+    tutup_jika
+
+    mov rdi, 0
+    call MorphLib_sys_exit
+tutup_fungsi

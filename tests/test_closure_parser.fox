@@ -1,0 +1,36 @@
+fungsi main
+    call MorphLib_heap_init
+
+    ; 1. Setup Captured Variables
+    mov rax, 10
+    mov rbx, 20
+
+    ; 2. Define Lambda
+    ; Captures rax (10) and rbx (20)
+    ; lambda_res will be the closure pointer
+    lambda lambda_test capture(rax, rbx)
+        ; Inside Lambda
+        ; context(0) -> 10 (rax)
+        ; context(1) -> 20 (rbx)
+
+        mov r8, context(0)
+        mov r9, context(1)
+
+        add r8, r9
+
+        ; Print Result (30)
+        mov rdi, r8
+        call MorphLib_print_decimal
+        call MorphLib_print_newline
+    tutup_lambda
+
+    ; Result is in rax (Closure Ptr)
+    mov r12, rax
+
+    ; 3. Call Closure
+    panggil_closure r12
+
+    mov rax, 60
+    mov rdi, 0
+    syscall
+tutup_fungsi

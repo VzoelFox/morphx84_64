@@ -41,6 +41,8 @@ fungsi mem_alloc
     ; Input: rdi (size)
     ; Output: rax (ptr to payload)
 
+    push rbx
+
     ; 1. Align size to 16 bytes (val + 15) & ~15
     add rdi, 15
     and rdi, -16
@@ -97,6 +99,7 @@ fungsi mem_alloc
                  ; Return Payload Ptr (r8 + 32)
                  mov rax, r8
                  add rax, 32
+                 pop rbx
                  ret
              tutup_jika
         tutup_jika
@@ -136,6 +139,7 @@ fungsi mem_alloc
     ; Return Payload (rbx + 32)
     mov rax, rbx
     add rax, 32
+    pop rbx
     ret
 tutup_fungsi
 
@@ -160,20 +164,11 @@ fungsi mem_realloc
     tutup_jika
 
     ; Calculate old size from header (ptr - 32)
-    ; Header: [prev:8][next:8][size:8][magic:8]
+    ; Header: [0-7]=Size
     mov rdx, rdi
     sub rdx, 32
 
-    ; Access [rdx + 16] manually
-    push rdx
-    add rdx, 16
-    mov rcx, [rdx] ; Size is at offset 16
-    pop rdx
-
-    ; Wait, alloc.fox:
-    ; mov [rax + 16], rsi (size)
-    ; mov [rax + 24], 0x28062004 (magic)
-    ; Yes, offset 16 is size.
+    mov rcx, [rdx] ; Size is at offset 0
 
     ; Determine copy size (min(old_size, new_size))
     cmp rcx, rsi
@@ -201,24 +196,22 @@ fungsi mem_realloc
     tutup_jika
 
     ; Copy data: dest(rdi)=rax, src(rsi)=old_ptr, len(rcx)=copy_size
+    push rsi ; Save old ptr for free (rsi is modified by rep movsb)
+
     push rax ; Save new ptr
     mov rdi, rax
     ; rsi is already old ptr
     ; rcx is already copy size
     cld
-    rep movsb
+    rep
+    movsb
 
     ; Free old ptr
-    pop rax ; new ptr
-    push rax ; save again
+    pop rax ; Restore new ptr
+    pop rdi ; Restore old ptr (into rdi for free)
 
-    ; Old ptr is needed for free. But we popped it into rsi?
-    ; Wait. Stack before copy: [rsi(old), ret].
-    ; "pop rsi ; old ptr".
-    ; So old ptr is in rsi.
-    mov rdi, rsi
+    push rax ; Save new ptr for return
     call mem_free
-
     pop rax ; Return new ptr
     ret
 tutup_fungsi
