@@ -64,6 +64,10 @@ STRUCT_OFFSET=0
 # Unit / Namespace Management
 CURRENT_UNIT=""
 
+# Lambda/Closure State
+declare -a LAMBDA_CAPTURES
+LAMBDA_COUNT=0
+
 # IntentTree Construction (Buffer for Auto-Gen Code)
 INTENT_INIT_CODE_FILE="intent_init.tmp"
 INTENT_ACTIVE_UNIT=""
@@ -111,6 +115,8 @@ init_output() {
     STACK_PTR=0
     # Reset Unit for compilation pass (state machine)
     CURRENT_UNIT=""
+    # Reset Lambda Counter
+    LAMBDA_COUNT=0
 }
 
 emit_byte() {
@@ -504,6 +510,110 @@ compile_line() {
         return
     fi
 
+    # --- LAMBDA & CLOSURE SUPPORT ---
+    if [[ "$mnemonic" == "lambda" ]]; then
+        LAMBDA_COUNT=$((LAMBDA_COUNT + 1))
+        local lambda_name=$(echo "$args" | awk '{print $1}')
+        local rest=$(echo "$args" | cut -d' ' -f2-)
+
+        # Parse captures: capture(reg1, reg2)
+        local captures=""
+        if [[ "$rest" =~ capture\((.*)\) ]]; then
+            captures="${BASH_REMATCH[1]}"
+            captures=${captures//,/ } # Replace comma with space
+        fi
+        LAMBDA_CAPTURES=($captures)
+
+        local lambda_label="_lambda_gen_${LAMBDA_COUNT}"
+        local skip_label=".skip_lambda_${LAMBDA_COUNT}"
+
+        # 1. Jump over the lambda body definition
+        compile_line "jmp $skip_label"
+
+        # 2. Define Function Label
+        compile_line "${lambda_label}:"
+
+        # 3. Push context (Stack Operations)
+        stack_push "LAMBDA" "$lambda_name"
+
+        # Store metadata for close_lambda
+        # We need to know the label and captures later.
+        # Store in associative array keyed by ID?
+        # Simpler: Store in global vars, assuming no nested lambdas for now.
+        # Or store in stack? Stack only stores ID.
+        # Let's verify no nested lambda (simplification)
+
+        return
+    fi
+
+    if [[ "$mnemonic" == "tutup_lambda" ]]; then
+        stack_pop
+        if [[ "$POP_TYPE" != "LAMBDA" ]]; then log "Error: tutup_lambda mismatch"; exit 1; fi
+
+        local lambda_id=$LAMBDA_COUNT # Assumes sequential processing matching nesting
+        local lambda_label="_lambda_gen_${lambda_id}"
+        local skip_label=".skip_lambda_${lambda_id}"
+
+        # 1. End Function
+        compile_line "ret"
+
+        # 2. Label Skip
+        compile_line "${skip_label}:"
+
+        # 3. Generate Closure Allocation Code
+        local num_captures=${#LAMBDA_CAPTURES[@]}
+        local struct_size=$((8 + num_captures * 8)) # FuncPtr + Captures
+
+        # Alloc
+        compile_line "mov rdi, $struct_size"
+        compile_line "call MorphLib_mem_alloc"
+        # rax now holds Closure Ptr
+
+        # Store Func Ptr at [rax]
+        compile_line "mov rdx, $lambda_label" # Get address of function
+        compile_line "mov [rax], rdx"
+
+        # Store Captures
+        local offset=8
+        for cap in "${LAMBDA_CAPTURES[@]}"; do
+             # cap should be a register or imm
+             compile_line "mov rdx, $cap"
+             compile_line "mov [rax+$offset], rdx"
+             offset=$((offset + 8))
+        done
+
+        # Result (Ptr) is in rax.
+        # If lambda had a name (e.g. closure my_cl = lambda ...), we might want to store it?
+        # The syntax was: lambda my_lambda ...
+        # The user expects `my_lambda` to be a label/var?
+        # In our manual test: `closure my_cl = ...`
+        # Let's assume the syntax `lambda my_lambda` means `my_lambda` is a label pointing to a location where we store the closure ptr?
+        # OR `my_lambda` IS the closure ptr?
+        # But we are in code stream.
+        # Let's follow: `mov rax, closure_ptr`.
+        # If the user wants to save it: `mov my_var, rax`.
+
+        return
+    fi
+
+    # Macro: context(N)
+    if [[ "$mnemonic" == "context("* ]]; then
+        # This is likely inside an instruction argument like `mov r8, context(0)`
+        # `parser.sh` splits by space. `mov` is mnemonic. `r8,` is arg1. `context(0)` is arg2.
+        # So this block won't trigger if it's an argument.
+        # Logic is inside `compile_line` parsing.
+        :
+    fi
+
+    # Macro: panggil_closure
+    if [[ "$mnemonic" == "panggil_closure" ]]; then
+        local reg="$args"
+        compile_line "mov r10, $reg"
+        compile_line "mov r11, [r10]"
+        compile_line "call r11"
+        return
+    fi
+
     # Label Definition (name:)
     if [[ "$mnemonic" == *":" ]]; then
         local name=${mnemonic%:}
@@ -536,6 +646,27 @@ compile_line() {
     fi
 
     # ... Normal Opcode Encoding ...
+
+    # Check for context(N) macro in args
+    if [[ "$arg1" =~ context\(([0-9]+)\) ]]; then
+        local idx="${BASH_REMATCH[1]}"
+        local offset=$((8 + idx * 8))
+        arg1="[r10+$offset]"
+    fi
+    if [[ "$arg2" =~ context\(([0-9]+)\) ]]; then
+        local idx="${BASH_REMATCH[1]}"
+        local offset=$((8 + idx * 8))
+        arg2="[r10+$offset]"
+    fi
+
+    # Reconstruct args for standard processing
+    if [[ -n "$arg2" ]]; then
+        # Opcode lookup logic expects args to be clean
+        # But wait, `is_mem_operand` checks for `[]`.
+        # `[r10+8]` has `+`, does `get_mem_reg_id` handle it?
+        :
+    fi
+
     if [[ -n "$arg1" ]]; then
         if is_reg "$arg1"; then
             if [[ -n "$arg2" ]]; then
@@ -612,24 +743,53 @@ compile_line() {
     local modrm_disp_val=0
 
     if [[ $has_modrm -eq 1 ]]; then
-        if [[ "$modrm_mode" == "reg,reg" ]]; then
-             r_rm=$(get_reg_id "$arg1")
-             r_reg=$(get_reg_id "$arg2")
-        elif [[ "$modrm_mode" == "dst_reg,src_reg" ]]; then
-             r_reg=$(get_reg_id "$arg1")
-             r_rm=$(get_reg_id "$arg2")
-        elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then
-             if is_mem_operand "$arg1"; then
-                 r_rm=$(get_mem_reg_id "$arg1")
+        # --- ModRM with Displacement Logic Update ---
+        # Need to handle [reg+disp]
+
+        local target_mem_arg=""
+        if is_mem_operand "$arg1"; then target_mem_arg="$arg1"; fi
+        if is_mem_operand "$arg2"; then target_mem_arg="$arg2"; fi
+
+        if [[ -n "$target_mem_arg" ]]; then
+             # Parse [base+disp]
+             local inner=${target_mem_arg#\[}
+             inner=${inner%\]}
+
+             local base_reg=""
+             local disp=0
+
+             if [[ "$inner" =~ ([a-z0-9]+)\+([0-9]+) ]]; then
+                 base_reg="${BASH_REMATCH[1]}"
+                 disp="${BASH_REMATCH[2]}"
+                 # Has displacement!
+                 modrm_disp_val=$disp
+                 if (( disp >= -128 && disp <= 127 )); then modrm_disp_size=8;
+                 else modrm_disp_size=32; fi
+             elif [[ "$inner" =~ ([a-z0-9]+)\-([0-9]+) ]]; then
+                 # Handle minus if needed, currently only plus generated by lambda
+                 :
              else
-                 r_rm=$(get_reg_id "$arg1")
+                 base_reg="$inner"
              fi
-        elif [[ "$modrm_mode" == "reg,mem" ]]; then
-             r_reg=$(get_reg_id "$arg1")
-             r_rm=$(get_mem_reg_id "$arg2")
-        elif [[ "$modrm_mode" == "mem,reg" ]]; then
-             r_reg=$(get_reg_id "$arg2")
-             r_rm=$(get_mem_reg_id "$arg1")
+
+             # Re-map base_reg for lookup
+             if [[ "$modrm_mode" =~ ^[0-7]$ ]]; then r_rm=$(get_reg_id "$base_reg");
+             elif [[ "$modrm_mode" == "reg,mem" ]]; then r_rm=$(get_reg_id "$base_reg"); r_reg=$(get_reg_id "$arg1");
+             elif [[ "$modrm_mode" == "mem,reg" ]]; then r_rm=$(get_reg_id "$base_reg"); r_reg=$(get_reg_id "$arg2");
+             else
+                 # Fallback
+                 if is_mem_operand "$arg1"; then r_rm=$(get_reg_id "$base_reg"); else r_reg=$(get_reg_id "$base_reg"); fi
+             fi
+        else
+            # Normal Reg-Reg
+             if [[ "$modrm_mode" == "reg,reg" ]]; then
+                 r_rm=$(get_reg_id "$arg1")
+                 r_reg=$(get_reg_id "$arg2")
+             elif [[ "$modrm_mode" == "dst_reg,src_reg" ]]; then
+                 r_reg=$(get_reg_id "$arg1")
+                 r_rm=$(get_reg_id "$arg2")
+             elif [[ "$modrm_mode" =~ ^[0-7]$ ]]; then r_rm=$(get_reg_id "$arg1");
+             fi
         fi
 
         if [[ $r_reg -ge 8 ]]; then rex=$((rex | 0x44)); fi # REX.R
@@ -663,10 +823,15 @@ compile_line() {
             mod=3
             rm_low=$((r_rm & 7))
         elif is_mem_operand "$arg1" || is_mem_operand "$arg2"; then
-             mod=0
              rm_low=$((r_rm & 7))
              if [[ $rm_low -eq 4 ]]; then needs_sib=1; fi
-             if [[ $rm_low -eq 5 ]]; then mod=1; disp_mode=1; modrm_disp_val=0; fi # [rbp] needs disp8(0)
+
+             if [[ $modrm_disp_size -eq 8 ]]; then mod=1; disp_mode=1;
+             elif [[ $modrm_disp_size -eq 32 ]]; then mod=2; disp_mode=2;
+             else
+                 mod=0
+                 if [[ $rm_low -eq 5 ]]; then mod=1; disp_mode=1; modrm_disp_val=0; fi # [rbp]
+             fi
         else
             mod=3
             rm_low=$((r_rm & 7))
@@ -678,7 +843,9 @@ compile_line() {
             emit_byte 0x24 # SIB
         fi
 
-        if [[ $disp_mode -eq 1 ]]; then emit_byte $modrm_disp_val; fi
+        if [[ $disp_mode -eq 1 ]]; then emit_byte $((modrm_disp_val & 0xFF));
+        elif [[ $disp_mode -eq 2 ]]; then emit_dword $modrm_disp_val;
+        fi
     fi
     # Emit Immediates
     if [[ $imm_size -eq 32 ]]; then
