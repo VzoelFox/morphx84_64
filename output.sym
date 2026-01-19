@@ -173,8 +173,8 @@
 4011ad MorphLib_sensor_ioctl_test
 4011cf MorphLib_.L_FALSE_74
 4011da main
-40122c .L_FALSE_75
-40127d .L_FALSE_76
-4012d1 .L_FALSE_77
-40131a .L_FALSE_78
-40132b _auto_init_intent_tree
+4011f4 .L_LOOP_START_75
+401206 .L_LOOP_END_75
+401234 .L_FALSE_76
+401256 .L_END_76
+401258 _auto_init_intent_tree
