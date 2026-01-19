@@ -1,0 +1,14 @@
+
+finit
+mov rax, 0x0A2121214F4C4C45 ; "ELLO!!!\n"
+push rax
+mov rax, 0x48 ; "H"
+push rax
+mov rdi, 1
+mov rsi, rsp
+mov rdx, 9
+call MorphLib_sys_write
+pop rax
+pop rax
+mov rdi, 0
+call MorphLib_sys_exit

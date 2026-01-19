@@ -1,5 +1,28 @@
 finit
+; Capture Startup Arguments
+mov rdi, [rsp]      ; argc
+lea rsi, [rsp+8]    ; argv
+; envp = argv + (argc + 1) * 8
+mov rax, rdi
+add rax, 1
+shl rax, 3          ; *8
+add rax, rsi        ; argv + offset
+mov rdx, rax        ; envp in rdx
+
+; Save Args while initializing Heap
+push rdx
+push rsi
+push rdi
+
 call MorphLib_heap_init
+
+; Restore Args for Startup Init
+pop rdi
+pop rsi
+pop rdx
+
+call MorphLib_sys_init_startup
+
 call MorphLib_daemon_init
 
 ; Debug 1

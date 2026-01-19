@@ -76,7 +76,7 @@ cat "${TEMP_EXEC}.code" >> "$TEMP_EXEC"
 
 # 4. Run
 chmod +x "$TEMP_EXEC"
-"$TEMP_EXEC"
+"$TEMP_EXEC" "${@:2}"
 RET=$?
 
 # Cleanup

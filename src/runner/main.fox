@@ -1,0 +1,170 @@
+fungsi Start
+    ; 1. Get Args
+    call MorphLib_sys_get_argc
+    mov rbx, rax ; argc
+
+    call MorphLib_sys_get_argv
+    mov r12, rax ; argv
+
+    ; Check argc >= 2
+    cmp rbx, 2
+    jika_kurang
+        ; Error: No input
+        mov rdi, 1
+        call MorphLib_sys_exit
+    tutup_jika
+
+    ; 2. Get Input Filename (argv[1])
+    ; argv is char**. argv[1] is at [argv + 8]
+    mov r10, r12
+    add r10, 8
+    mov r13, [r10] ; r13 = input_filename
+
+    ; 3. Open Input File
+    mov rdi, r13
+    mov rsi, 0 ; O_RDONLY
+    mov rdx, 0
+    call MorphLib_sys_open
+
+    cmp rax, 0xFFFFFFFFFFFFF000
+    jika_diatas
+        mov rdi, 2
+        call MorphLib_sys_exit
+    tutup_jika
+    mov r14, rax ; r14 = input_fd
+
+    ; 4. Get File Size
+    mov rdi, r14
+    mov rsi, 0
+    mov rdx, 2
+    call MorphLib_sys_lseek
+    mov rbx, rax ; rbx = file_size
+
+    ; Reset cursor
+    mov rdi, r14
+    mov rsi, 0
+    mov rdx, 0
+    call MorphLib_sys_lseek
+
+    ; 5. Read into buffer
+    mov rdi, rbx
+    call MorphLib_mem_alloc
+    mov r12, rax ; r12 = code_buf
+
+    mov rdi, r14
+    mov rsi, r12
+    mov rdx, rbx
+    call MorphLib_sys_read
+
+    mov rdi, r14
+    call MorphLib_sys_close
+
+    ; 6. Verify Magic
+    mov rax, [r12]
+    mov rdx, 0x584F464C454F5A56
+    cmp rax, rdx
+    jika_beda
+        mov rdi, 3
+        call MorphLib_sys_exit
+    tutup_jika
+
+    ; 7. Create Temp Exec
+    ; Alloc 64 bytes for filename (avoid overflow on write)
+    mov rdi, 64
+    call MorphLib_mem_alloc
+    mov r13, rax ; r13 = output_filename
+
+    ; Copy "/tmp/mrph_" (10 bytes)
+    ; 0x70726D2F706D742F (first 8)
+    mov rdx, 0x70726D2F706D742F
+    mov [r13], rdx
+    ; 0x5F68 (next 2)
+    ; Use full rdx write, high bytes 0
+    mov rdx, 0x5F68
+    mov r11, r13
+    add r11, 8
+    mov [r11], rdx
+
+    ; Generate Random ID (rdtsc)
+    call MorphLib_metrik_now
+    mov r8, rax ; Random val
+
+    ; Convert r8 to hex at [r13+10]
+    mov r9, r13
+    add r9, 10 ; Start writing here
+    mov r10, 16 ; 16 nibbles
+
+    loop hex_loop
+        ; Rotate Left by 4 (High nibble becomes Low)
+        rol r8, 4
+        mov rax, r8
+        and rax, 0xF
+
+        cmp rax, 9
+        jika_diatas
+            add rax, 55
+        lainnya
+            add rax, 48
+        tutup_jika
+
+        ; Write char (writes 8 bytes, next iteration overwrites tail)
+        mov [r9], rax
+        inc r9
+
+        dec r10
+        cmp r10, 0
+        jika_sama
+            henti
+        tutup_jika
+    tutup_loop
+
+    ; Null terminate (writes 8 bytes of 0)
+    mov rdx, 0
+    mov [r9], rdx
+
+    ; Open Output
+    mov rdi, r13
+    mov rsi, 577 ; O_CREAT | O_TRUNC | O_WRONLY
+    mov rdx, 493 ; 0755
+    call MorphLib_sys_open
+    mov r14, rax ; output_fd
+
+    ; 8. Write ELF Header
+    mov rsi, rbx
+    sub rsi, 8
+    mov rdi, r14
+    call MorphRunner_elf_write_header
+
+    ; 9. Write Code Body
+    mov rsi, r12
+    add rsi, 8
+    mov rdx, rbx
+    sub rdx, 8
+    mov rdi, r14
+    call MorphLib_sys_write
+
+    mov rdi, r14
+    call MorphLib_sys_close
+
+    ; 10. Exec
+    mov rdi, r13 ; Filename
+
+    ; Shift Argv
+    call MorphLib_sys_get_argv
+    add rax, 8 ; Skip 'runner' arg. New argv[0] is input_filename.
+    mov rsi, rax
+
+    call MorphLib_sys_get_envp
+    mov rdx, rax
+
+    call MorphLib_sys_execve
+
+    mov rdi, 99
+    call MorphLib_sys_exit
+    ret
+tutup_fungsi
+
+.meta_unit_reset
+fungsi main
+    ret
+tutup_fungsi

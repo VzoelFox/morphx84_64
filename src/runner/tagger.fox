@@ -1,0 +1,8 @@
+Unit: MorphRunner
+Ambil ../../morphlib
+
+Ambil elf.fox
+Ambil main.fox
+
+Shard: Init
+Fragment: Start -> Ambil main.fox
