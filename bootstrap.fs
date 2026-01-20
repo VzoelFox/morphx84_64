@@ -14,7 +14,11 @@ code-buffer @ code-ptr !
 : emit-qword ( qw -- ) dup emit-dword 32 rshift emit-dword ;
 
 : str-eq? ( a1 l1 a2 l2 -- f ) compare 0= ;
-: debug-print ( a l -- ) stderr write-file drop s"  " stderr write-line drop ;
+: debug-print ( a l -- )
+  2dup stderr write-file drop
+  s"  Len: " stderr write-file drop
+  dup 0 .r
+  s"  " stderr write-line drop ;
 
 \ --- Parser Utils ---
 variable source-ptr
@@ -37,15 +41,17 @@ create temp-path 256 allot
   2swap dup >r \ save dir-l (R: fl dl)
   temp-path swap move \ move dir
   r> temp-path + \ dest
-  swap r@ move \ move file
+  rot swap r@ move \ move file
   temp-path r> r> + ; \ full-addr full-len
 
 : try-open ( addr len -- fd )
   \ Try relative to CWD
-  2dup file-exists? if r/o open-file throw exit then
+  2dup type s"  ? " type 2dup file-exists?
+  if s" YES" type cr r/o open-file throw exit else s" NO" type cr then
   \ Try src/ prefix
   s" src/" 2swap concat-path
-  2dup file-exists? if r/o open-file throw exit then
+  2dup type s"  ? " type 2dup file-exists?
+  if s" YES" type cr r/o open-file throw exit else s" NO" type cr then
   \ Fail
   s" Brainlib/" 2swap concat-path
   2dup debug-print \ Print failure path
@@ -55,6 +61,7 @@ create temp-path 256 allot
   2dup debug-print
   try-open >r
   r@ file-size throw drop
+  dup . cr \ Print Size
   dup source-len !
   dup allocate throw source-ptr !
   source-ptr @ source-len @ r@ read-file throw drop
@@ -134,26 +141,26 @@ variable patches 0 patches !
 
 : resolve-patches-full
   patches @ begin dup while
-    dup cell+ @ swap \ offset, node
-    dup 2 cells + @ swap \ len, node
-    dup 3 cells + \ str-addr, node
-    rot rot 2dup find-label if
-       nip nip
-       swap over swap - 4 -
+    dup >r
+    cell+ @ \ offset
+    r@ 2 cells + @ \ len
+    r@ 3 cells + \ str-addr
+    swap \ offset str-addr len
+    2dup find-label if
+       drop nip nip
+       2dup swap - 4 -
+       -rot drop
        code-buffer @ + l!
     else
-       2drop drop drop
+       2drop drop
     then
-    @
+    r> @
   repeat drop ;
 
 \ --- Encoder ---
 : emit-rex ( w r b -- )
-  0
-  rot if 8 or then
-  rot if 4 or then
-  rot if 1 or then
-  dup if $40 or emit-byte else drop then ;
+  >r swap if 8 else 0 then swap if 4 or then r> if 1 or then
+  dup 0 > if $40 or emit-byte else drop then ;
 
 : is-reg ( addr len -- id type true | addr len false )
   \ type: 0=gp, 1=xmm
@@ -182,6 +189,7 @@ defer compile-recurse
   begin
     next-word dup 0 >
   while
+    2dup type cr \ DEBUG PARSER
     \ Directives
     2dup s" Ambil" str-eq? if
        2drop next-word 2drop \ compile-recurse
@@ -191,7 +199,7 @@ defer compile-recurse
     else 2dup s" tutup_fungsi" str-eq? if 2drop
     else 2dup s" Unit:" str-eq? if 2drop next-word 2drop
     else 2dup s" Shard:" str-eq? if 2drop next-word 2drop
-    else 2dup s" Fragment:" str-eq? if 2drop next-word 2drop next-word 2drop next-word 2drop next-word 2drop \ compile-recurse
+    else 2dup s" Fragment:" str-eq? if 2drop next-word 2drop next-word 2drop next-word 2drop next-word compile-recurse
     else 2dup s" ret" str-eq? if 2drop $C3 emit-byte
     else 2dup s" syscall" str-eq? if 2drop $0F emit-byte $05 emit-byte
     else 2dup s" push" str-eq? if
@@ -217,21 +225,20 @@ defer compile-recurse
          >r >r \ save type, id
          next-word strip-comma is-reg if
            \ Reg, Reg
-           r> r>
-           rot rot \ id2(src), id1(dst)
+           r> r> drop
+           \ Stack: src(id2) dst(id1)
            2dup
-           8 >= swap 8 >= rot \ dst>=8 src>=8
-           -1 emit-rex
+           8 >= swap 8 >= \ src dst b(dst) b(src)
+           swap -1 emit-rex \ w=-1 r=src b=dst
            $89 emit-byte
            \ ModRM: 11 src dst
            swap 7 and 3 lshift swap 7 and or $C0 or emit-byte
-           drop drop
          else
            \ Reg, Imm
            parse-number
            r> r> drop
            \ dst(id), val
-           swap dup 8 >= swap 0 -1 emit-rex
+           swap dup 8 >= -1 0 rot emit-rex
            7 and $B8 + emit-byte
            emit-qword
          then
@@ -268,26 +275,84 @@ defer compile-recurse
   repeat 2drop ;
 
 : compile-file ( addr len -- )
-  save-state
+  save-state >r >r >r
   slurp-file
   compile-loop
   source-ptr @ free throw
-  restore-state ;
+  r> r> r> restore-state ;
 
 ' compile-file is compile-recurse
 
 : stub ( name-addr name-len -- )
   code-ptr @ code-buffer @ - add-label $C3 emit-byte ;
 
+: emit-syscall-stub ( id -- )
+  \ mov rax, id; syscall; ret
+  $B8 emit-byte emit-dword
+  $0F emit-byte $05 emit-byte
+  $C3 emit-byte ;
+
+: emit-mem-alloc ( -- )
+  \ MorphLib_mem_alloc(size: rdi) -> ptr: rax
+  \ Using sys_brk (12)
+  \ 1. Get current brk
+  $57 emit-byte \ push rdi (save size)
+  $B8 emit-byte 12 emit-dword \ mov eax, 12
+  $48 emit-byte $31 emit-byte $FF emit-byte \ xor rdi, rdi
+  $0F emit-byte $05 emit-byte \ syscall -> rax = current_brk
+
+  \ 2. Calculate new brk
+  $5F emit-byte \ pop rdi (restore size)
+  $48 emit-byte $89 emit-byte $C2 \ mov rdx, rax (save old_brk to rdx)
+  $48 emit-byte $01 emit-byte $C7 \ add rdi, rax (new_brk = size + current)
+
+  \ 3. Set new brk
+  $B8 emit-byte 12 emit-dword \ mov eax, 12
+  $0F emit-byte $05 emit-byte \ syscall (rdi has new_brk)
+
+  \ 4. Return old brk (allocated ptr)
+  $48 emit-byte $89 emit-byte $D0 \ mov rax, rdx
+  $C3 emit-byte ;
+
+: emit-print-newline ( -- )
+  \ push 10 (\n)
+  $6A emit-byte 10 emit-byte
+  \ write(1, rsp, 1)
+  $BF emit-byte 1 emit-dword \ mov edi, 1
+  $48 emit-byte $89 emit-byte $E6 \ mov rsi, rsp
+  $BA emit-byte 1 emit-dword \ mov edx, 1
+  $B8 emit-byte 1 emit-dword \ mov eax, 1
+  $0F emit-byte $05 emit-byte \ syscall
+  \ pop
+  $58 emit-byte \ pop rax
+  $C3 emit-byte ;
+
+: emit-print-decimal ( -- )
+  \ Stub: just print '?' for now to avoid complex div logic in bootstrap
+  $6A emit-byte 63 emit-byte \ push '?'
+  $BF emit-byte 1 emit-dword
+  $48 emit-byte $89 emit-byte $E6
+  $BA emit-byte 1 emit-dword
+  $B8 emit-byte 1 emit-dword
+  $0F emit-byte $05 emit-byte
+  $58 emit-byte
+  $C3 emit-byte ;
+
+: define-func ( name-addr name-len xt -- )
+  \ Add label and execute generator
+  -rot 2dup type cr
+  code-ptr @ code-buffer @ - add-label
+  execute ;
+
 \ --- Bootstrap ---
 : run-bootstrap
   s" VZOELFOX" code-buffer @ swap move
   8 code-ptr +!
 
-  \ Emit Exit (to prevent segfault on empty entry)
-  $48 emit-byte $31 emit-byte $FF emit-byte \ xor rdi, rdi
-  $B8 emit-byte 60 emit-dword \ mov eax, 60
-  $0F emit-byte $05 emit-byte \ syscall
+  \ Jump to Start (Forward Reference)
+  $E9 emit-byte \ JMP rel32
+  s" Start" code-ptr @ code-buffer @ - add-patch-full \ Patch this later
+  0 emit-dword
 
   \ Compile Tagged Entry
   s" src/tagger.fox"
@@ -300,19 +365,21 @@ defer compile-recurse
   compile-loop
   source-ptr @ free throw
 
-  \ Generate Stubs
+  \ Generate Nano-Lib
+  s" MorphLib_sys_write" code-ptr @ code-buffer @ - add-label 1 emit-syscall-stub
+  s" MorphLib_sys_open"  code-ptr @ code-buffer @ - add-label 2 emit-syscall-stub
+  s" MorphLib_sys_read"  code-ptr @ code-buffer @ - add-label 0 emit-syscall-stub
+  s" MorphLib_sys_close" code-ptr @ code-buffer @ - add-label 3 emit-syscall-stub
+  s" MorphLib_mem_alloc" code-ptr @ code-buffer @ - add-label emit-mem-alloc
+  s" MorphLib_print_newline" code-ptr @ code-buffer @ - add-label emit-print-newline
+  s" MorphLib_print_decimal" code-ptr @ code-buffer @ - add-label emit-print-decimal
+
+  \ Stubs for others
   s" MorphLib_heap_init" stub
   s" MorphLib_sys_init_startup" stub
   s" MorphLib_daemon_init" stub
   s" _auto_init_intent_tree" stub
   s" MorphLib_routine_run_unit" stub
-  s" MorphLib_sys_write" stub
-  s" MorphLib_mem_alloc" stub
-  s" MorphLib_sys_open" stub
-  s" MorphLib_sys_read" stub
-  s" MorphLib_sys_close" stub
-  s" MorphLib_print_decimal" stub
-  s" MorphLib_print_newline" stub
   s" Compiler_lexer_new" stub
   s" Compiler_lexer_next_token" stub
 
