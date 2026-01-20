@@ -1,16 +1,90 @@
-; --- Token Types ---
+; ============================================================================
+; TOKEN DEFINITIONS - Morph Self-Host Compiler
+; ============================================================================
+; [AI_HINT: Definisi semua token types untuk lexer]
+
+; --- Basic Token Types ---
 const TOKEN_EOF 0
 const TOKEN_UNKNOWN 1
-const TOKEN_KEYWORD 2
-const TOKEN_IDENTIFIER 3
-const TOKEN_NUMBER 4
-const TOKEN_SYMBOL 5
-const TOKEN_STRING 6
+const TOKEN_NEWLINE 2         ; Untuk track line numbers
+
+; --- Identifiers & Literals ---
+const TOKEN_IDENTIFIER 10     ; nama_variabel, label, dll
+const TOKEN_NUMBER 11         ; 123, 0xFF, dll
+const TOKEN_STRING 12         ; "hello world"
+const TOKEN_CHAR 13           ; 'A' atau 65
+
+; --- Keywords (Morph/Indonesian) ---
+const TOKEN_FUNGSI 20         ; fungsi
+const TOKEN_TUTUP_FUNGSI 21   ; tutup_fungsi
+const TOKEN_JIKA 22           ; jika_sama, jika_beda, dll
+const TOKEN_TUTUP_JIKA 23     ; tutup_jika
+const TOKEN_LAINNYA 24        ; lainnya (else)
+const TOKEN_LOOP 25           ; loop
+const TOKEN_TUTUP_LOOP 26     ; tutup_loop
+const TOKEN_SELAMA 27         ; selama_*
+const TOKEN_TUTUP_SELAMA 28   ; tutup_selama
+const TOKEN_HENTI 29          ; henti (break)
+const TOKEN_LANJUT 30         ; lanjut (continue)
+const TOKEN_LOMPAT 31         ; lompat (jump)
+const TOKEN_KEMBALI 32        ; kembali (ret)
+const TOKEN_STRUKTUR 33       ; struktur
+const TOKEN_TUTUP_STRUKTUR 34 ; tutup_struktur
+const TOKEN_PROP 35           ; prop (struct field)
+const TOKEN_CONST 36          ; const
+const TOKEN_DATA 37           ; data "..."
+const TOKEN_AMBIL 38          ; Ambil (import)
+const TOKEN_LAMBDA 39         ; lambda
+const TOKEN_TUTUP_LAMBDA 40   ; tutup_lambda
+const TOKEN_DEBUG 41          ; debug
+
+; --- Registers ---
+const TOKEN_REGISTER 50       ; rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8-r15
+const TOKEN_XMMREG 51         ; xmm0-xmm15
+
+; --- Instructions (akan di-lookup dari Brainlib) ---
+const TOKEN_INSTRUCTION 60    ; mov, add, sub, cmp, dll
+
+; --- Operators & Punctuation ---
+const TOKEN_COMMA 70          ; ,
+const TOKEN_COLON 71          ; :
+const TOKEN_SEMICOLON 72      ; ; (juga comment start)
+const TOKEN_LBRACKET 73       ; [
+const TOKEN_RBRACKET 74       ; ]
+const TOKEN_LPAREN 75         ; (
+const TOKEN_RPAREN 76         ; )
+const TOKEN_PLUS 77           ; +
+const TOKEN_MINUS 78          ; -
+const TOKEN_STAR 79           ; *
+const TOKEN_DOT 80            ; .
+const TOKEN_HASH 81           ; #
+
+; --- Comment ---
+const TOKEN_COMMENT 90        ; ; sampai newline
 
 ; --- File Flags ---
 const O_RDONLY 0
 const O_WRONLY 1
 const O_RDWR 2
+const O_CREAT 64
+const O_TRUNC 512
 
 ; --- Buffer Sizes ---
-const MAX_SOURCE_SIZE 102400 ; 100KB Limit for now
+const MAX_SOURCE_SIZE 102400  ; 100KB
+const MAX_TOKEN_LEN 256       ; Max identifier/string length
+
+; --- Structure Sizes ---
+const Token_SIZE 48           ; Token struct size (6 fields * 8 bytes)
+const Lexer_SIZE 64           ; Lexer struct size (8 fields * 8 bytes)
+const Parser_SIZE 56          ; Parser struct size (7 fields * 8 bytes)
+
+; --- Lexer State ---
+; Token hasil lexing disimpan dalam struct Token
+struktur Token
+    prop type 8           ; Token type (const di atas)
+    prop value_ptr 8      ; Pointer ke string value (untuk identifier/string)
+    prop value_len 8      ; Length of value
+    prop value_num 8      ; Numeric value (untuk numbers)
+    prop line 8           ; Line number
+    prop col 8            ; Column number
+tutup_struktur

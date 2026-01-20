@@ -1,0 +1,594 @@
+; ============================================================================
+; KEYWORDS - Morph Self-Host Compiler
+; ============================================================================
+; [AI_HINT: Keyword recognition untuk lexer]
+;
+; Fungsi untuk mengecek apakah identifier adalah keyword.
+; Menggunakan string comparison manual karena tidak ada dependensi.
+
+; ============================================================================
+; STRING COMPARISON HELPER
+; ============================================================================
+
+fungsi str_equal_n
+    ; Input: rdi (str1), rsi (str2), rdx (len)
+    ; Output: rax (1 if equal, 0 if not)
+    ; [AI_HINT: Bandingkan dua string dengan panjang tertentu]
+
+    push rbx
+    push rcx
+    mov rcx, rdx ; count
+
+    loop streq_loop
+        cmp rcx, 0
+        jika_sama
+            ; All chars matched
+            mov rax, 1
+            pop rcx
+            pop rbx
+            ret
+        tutup_jika
+
+        movzx rax, [rdi]
+        movzx rbx, [rsi]
+
+        cmp rax, rbx
+        jika_beda
+            mov rax, 0
+            pop rcx
+            pop rbx
+            ret
+        tutup_jika
+
+        inc rdi
+        inc rsi
+        dec rcx
+    tutup_loop
+
+    mov rax, 1
+    pop rcx
+    pop rbx
+    ret
+tutup_fungsi
+
+; ============================================================================
+; KEYWORD STRINGS (stored as data)
+; ============================================================================
+
+kw_fungsi:
+    data "fungsi\0"
+kw_tutup_fungsi:
+    data "tutup_fungsi\0"
+kw_jika_sama:
+    data "jika_sama\0"
+kw_jika_beda:
+    data "jika_beda\0"
+kw_jika_kurang:
+    data "jika_kurang\0"
+kw_jika_lebih:
+    data "jika_lebih\0"
+kw_jika_kurang_sama:
+    data "jika_kurang_sama\0"
+kw_jika_lebih_sama:
+    data "jika_lebih_sama\0"
+kw_jika_nol:
+    data "jika_nol\0"
+kw_jika_bukan_nol:
+    data "jika_bukan_nol\0"
+kw_jika_positif:
+    data "jika_positif\0"
+kw_jika_negatif:
+    data "jika_negatif\0"
+kw_jika_diatas:
+    data "jika_diatas\0"
+kw_jika_dibawah:
+    data "jika_dibawah\0"
+kw_jika_diatas_sama:
+    data "jika_diatas_sama\0"
+kw_jika_dibawah_sama:
+    data "jika_dibawah_sama\0"
+kw_tutup_jika:
+    data "tutup_jika\0"
+kw_lainnya:
+    data "lainnya\0"
+kw_loop:
+    data "loop\0"
+kw_tutup_loop:
+    data "tutup_loop\0"
+kw_selama:
+    data "selama\0"
+kw_tutup_selama:
+    data "tutup_selama\0"
+kw_henti:
+    data "henti\0"
+kw_lanjut:
+    data "lanjut\0"
+kw_lompat:
+    data "lompat\0"
+kw_kembali:
+    data "kembali\0"
+kw_ret:
+    data "ret\0"
+kw_struktur:
+    data "struktur\0"
+kw_tutup_struktur:
+    data "tutup_struktur\0"
+kw_prop:
+    data "prop\0"
+kw_const:
+    data "const\0"
+kw_data:
+    data "data\0"
+kw_Ambil:
+    data "Ambil\0"
+kw_ambil:
+    data "ambil\0"
+kw_debug:
+    data "debug\0"
+kw_lambda:
+    data "lambda\0"
+kw_tutup_lambda:
+    data "tutup_lambda\0"
+
+; ============================================================================
+; KEYWORD CHECK FUNCTION
+; ============================================================================
+
+fungsi keyword_lookup
+    ; Input: rdi (string ptr), rsi (string len)
+    ; Output: rax (token type, or TOKEN_IDENTIFIER if not keyword)
+    ; [AI_HINT: Cek apakah identifier adalah keyword Morph]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; str ptr
+    mov r13, rsi ; str len
+
+    ; Check each keyword
+    ; fungsi (6 chars)
+    cmp r13, 6
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_fungsi
+        mov rdx, 6
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_FUNGSI
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; tutup_fungsi (12 chars)
+    cmp r13, 12
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_fungsi
+        mov rdx, 12
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_FUNGSI
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; tutup_jika (10 chars)
+    cmp r13, 10
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_jika
+        mov rdx, 10
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_JIKA
+            lompat kw_done
+        tutup_jika
+
+        ; tutup_loop (10 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_loop
+        mov rdx, 10
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_LOOP
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; lainnya (7 chars)
+    cmp r13, 7
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_lainnya
+        mov rdx, 7
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_LAINNYA
+            lompat kw_done
+        tutup_jika
+
+        ; kembali (7 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_kembali
+        mov rdx, 7
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_KEMBALI
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; loop (4 chars)
+    cmp r13, 4
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_loop
+        mov rdx, 4
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_LOOP
+            lompat kw_done
+        tutup_jika
+
+        ; prop (4 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_prop
+        mov rdx, 4
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_PROP
+            lompat kw_done
+        tutup_jika
+
+        ; data (4 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_data
+        mov rdx, 4
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_DATA
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; henti (5 chars)
+    cmp r13, 5
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_henti
+        mov rdx, 5
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_HENTI
+            lompat kw_done
+        tutup_jika
+
+        ; Ambil (5 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_Ambil
+        mov rdx, 5
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_AMBIL
+            lompat kw_done
+        tutup_jika
+
+        ; ambil (5 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_ambil
+        mov rdx, 5
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_AMBIL
+            lompat kw_done
+        tutup_jika
+
+        ; debug (5 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_debug
+        mov rdx, 5
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_DEBUG
+            lompat kw_done
+        tutup_jika
+
+        ; const (5 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_const
+        mov rdx, 5
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_CONST
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; lanjut (6 chars)
+    cmp r13, 6
+        mov rdi, r12
+        mov rsi, Compiler_kw_lanjut
+        mov rdx, 6
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_LANJUT
+            lompat kw_done
+        tutup_jika
+
+        ; lompat (6 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_lompat
+        mov rdx, 6
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_LOMPAT
+            lompat kw_done
+        tutup_jika
+
+        ; selama (6 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_selama
+        mov rdx, 6
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_SELAMA
+            lompat kw_done
+        tutup_jika
+
+        ; lambda (6 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_lambda
+        mov rdx, 6
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_LAMBDA
+            lompat kw_done
+        tutup_jika
+
+    ; jika_* keywords (9+ chars, check prefix first)
+    cmp r13, 9
+    jika_kurang
+        lompat check_struktur
+    tutup_jika
+
+    ; Check jika_ prefix (5 chars)
+    mov rdi, r12
+    mov rsi, Compiler_kw_jika_sama ; Use first 5 chars "jika_"
+    mov rdx, 5
+    call Compiler_str_equal_n
+    cmp rax, 1
+    jika_sama
+        ; It's a jika_* keyword - return generic JIKA token
+        ; Parser will handle the specific condition
+        mov rax, Compiler_TOKEN_JIKA
+        lompat kw_done
+    tutup_jika
+
+    ; Check selama_ prefix
+    cmp r13, 7
+    jika_kurang
+        lompat check_struktur
+    tutup_jika
+    mov rdi, r12
+    mov rsi, Compiler_kw_selama
+    mov rdx, 6
+    call Compiler_str_equal_n
+    cmp rax, 1
+    jika_sama
+        mov rax, Compiler_TOKEN_SELAMA
+        lompat kw_done
+    tutup_jika
+
+    check_struktur:
+    ; struktur (8 chars)
+    cmp r13, 8
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_struktur
+        mov rdx, 8
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_STRUKTUR
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; tutup_struktur (14 chars)
+    cmp r13, 14
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_struktur
+        mov rdx, 14
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_STRUKTUR
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; tutup_selama (12 chars)
+    cmp r13, 12
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_selama
+        mov rdx, 12
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_SELAMA
+            lompat kw_done
+        tutup_jika
+
+        ; tutup_lambda (12 chars)
+        mov rdi, r12
+        mov rsi, Compiler_kw_tutup_lambda
+        mov rdx, 12
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_TUTUP_LAMBDA
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; ret (3 chars)
+    cmp r13, 3
+    jika_sama
+        mov rdi, r12
+        mov rsi, Compiler_kw_ret
+        mov rdx, 3
+        call Compiler_str_equal_n
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_KEMBALI
+            lompat kw_done
+        tutup_jika
+    tutup_jika
+
+    ; Not a keyword
+    mov rax, Compiler_TOKEN_IDENTIFIER
+
+    kw_done:
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; REGISTER CHECK
+; ============================================================================
+
+fungsi is_register
+    ; Input: rdi (string ptr), rsi (string len)
+    ; Output: rax (1 if register, 0 if not)
+    ; [AI_HINT: Cek apakah identifier adalah register x86-64]
+
+    ; Quick checks by length
+    ; 3 chars: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp
+    ; 2 chars: r8, r9
+    ; 3 chars: r10, r11, r12, r13, r14, r15
+    ; 4 chars: xmm0-xmm9
+    ; 5 chars: xmm10-xmm15
+
+    cmp rsi, 2
+    jika_sama
+        ; r8, r9
+        movzx rax, [rdi]
+        cmp rax, 114 ; 'r'
+        jika_beda
+            mov rax, 0
+            ret
+        tutup_jika
+        mov rbx, rdi
+        inc rbx
+        movzx rax, [rbx]
+        cmp rax, 56 ; '8'
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 57 ; '9'
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        mov rax, 0
+        ret
+    tutup_jika
+
+    cmp rsi, 3
+    jika_sama
+        ; Check first char 'r'
+        movzx rax, [rdi]
+        cmp rax, 114 ; 'r'
+        jika_beda
+            mov rax, 0
+            ret
+        tutup_jika
+
+        ; Check second char
+        mov rbx, rdi
+        inc rbx
+        movzx rax, [rbx]
+
+        ; rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp
+        ; r10, r11, r12, r13, r14, r15
+        cmp rax, 97 ; 'a' -> rax
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 98 ; 'b' -> rbx, rbp
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 99 ; 'c' -> rcx
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 100 ; 'd' -> rdx, rdi
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 115 ; 's' -> rsi, rsp
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+        cmp rax, 49 ; '1' -> r10-r15
+        jika_sama
+            mov rax, 1
+            ret
+        tutup_jika
+
+        mov rax, 0
+        ret
+    tutup_jika
+
+    ; xmm registers (4-5 chars)
+    cmp rsi, 4
+    jika_kurang
+        mov rax, 0
+        ret
+    tutup_jika
+    cmp rsi, 5
+    jika_lebih
+        mov rax, 0
+        ret
+    tutup_jika
+
+    ; Check "xmm" prefix
+    movzx rax, [rdi]
+    cmp rax, 120 ; 'x'
+    jika_beda
+        mov rax, 0
+        ret
+    tutup_jika
+
+    mov rax, 1
+    ret
+tutup_fungsi

@@ -1,0 +1,326 @@
+; ============================================================================
+; ARTIFACT GENERATOR - Binary Output Generator
+; ============================================================================
+; [AI_HINT: Generate VZOELFOX binary dari optimized AST]
+;
+; Artifact Generator:
+; 1. Traverse AST (Unit → Shard → Fragment → Function → Instruction)
+; 2. Emit machine code untuk setiap instruction
+; 3. Build symbol table untuk labels dan functions
+; 4. Build IntentTree runtime structure
+; 5. Output VZOELFOX binary format
+
+; ============================================================================
+; VZOELFOX BINARY FORMAT
+; ============================================================================
+;
+; [0-7]    Magic: "VZOELFOX" (8 bytes)
+; [8-15]   Version: 1 (8 bytes)
+; [16-23]  Code Size (8 bytes)
+; [24-31]  Data Size (8 bytes)
+; [32-39]  IntentTree Offset (8 bytes)
+; [40-47]  Entry Point Offset (8 bytes)
+; [48+]    Code Section
+; [...]    Data Section
+; [...]    IntentTree Section
+; [...]    Symbol Table (optional)
+
+const ARTIFACT_MAGIC_0 0x4F46 ; "FO"
+const ARTIFACT_MAGIC_1 0x4C45 ; "EL"
+const ARTIFACT_MAGIC_2 0x5A56 ; "VZ"
+const ARTIFACT_MAGIC_3 0x4F4F ; "OO"
+
+const ARTIFACT_VERSION 1
+const ARTIFACT_HEADER_SIZE 48
+
+; ============================================================================
+; ARTIFACT STATE
+; ============================================================================
+
+const Artifact_SIZE 56
+
+struktur Artifact
+    prop emitter 8           ; Emitter instance
+    prop ast_root 8          ; AST root (Unit)
+    prop symbol_table 8      ; Symbol table ptr
+    prop intenttree 8        ; IntentTree root
+    prop code_size 8         ; Code section size
+    prop data_size 8         ; Data section size
+    prop entry_point 8       ; Entry point offset
+tutup_struktur
+
+; ============================================================================
+; ARTIFACT GENERATION - MAIN ENTRY
+; ============================================================================
+
+fungsi artifact_generate
+    ; Input: rdi (AST root - Unit node)
+    ; Output: rax (binary buffer ptr), rdx (binary size)
+    ; [AI_HINT: Generate complete binary dari AST]
+
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi ; AST root
+
+    ; 1. Allocate Artifact struct
+    mov rdi, Codegen_Artifact_SIZE
+    call MorphLib_mem_alloc
+    mov r13, rax ; artifact ptr
+
+    ; Store AST root
+    mov rbx, r13
+    add rbx, 8
+    mov [rbx], r12
+
+    ; 2. Create Emitter (100KB buffer)
+    mov rdi, 102400
+    call Codegen_emitter_new
+    mov [r13], rax ; emitter ptr
+    mov r14, rax
+
+    ; 3. Build Symbol Table
+    mov rdi, r13
+    mov rsi, r12
+    call Codegen_artifact_build_symbols
+
+    ; 4. Generate Code Section
+    mov rdi, r13
+    mov rsi, r12
+    call Codegen_artifact_emit_code
+
+    ; 5. Build IntentTree
+    mov rdi, r13
+    mov rsi, r12
+    call Codegen_artifact_build_intenttree
+
+    ; 6. Write Binary Header
+    mov rdi, r13
+    call Codegen_artifact_write_header
+
+    ; 7. Get output buffer
+    mov rax, [r14] ; emitter->output_buffer
+
+    ; Get output size
+    mov rbx, r14
+    add rbx, 8
+    mov rdx, [rbx] ; output_pos
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; WRITE VZOELFOX HEADER
+; ============================================================================
+
+fungsi artifact_write_header
+    ; Input: rdi (Artifact ptr)
+    ; [AI_HINT: Write VZOELFOX binary header]
+
+    push r12
+    mov r12, rdi
+
+    ; Get emitter
+    mov r13, [r12]
+
+    ; Write Magic "VZOELFOX"
+    mov rdi, r13
+    mov rsi, 0x5846 ; "FX"
+    call Codegen_emitter_write_byte
+    mov rsi, 0x4F ; "O"
+    call Codegen_emitter_write_byte
+
+    ; TODO: Write rest of header
+    ; For now, placeholder
+
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; BUILD SYMBOL TABLE
+; ============================================================================
+
+fungsi artifact_build_symbols
+    ; Input: rdi (Artifact ptr), rsi (AST root)
+    ; [AI_HINT: Build symbol table dari AST labels dan functions]
+
+    push r12
+    push r13
+    mov r12, rdi ; artifact
+    mov r13, rsi ; AST
+
+    ; TODO: Traverse AST dan collect symbols
+    ; - Function names
+    ; - Label names
+    ; - Const definitions
+    ; Store in symbol table hash map
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; EMIT CODE SECTION
+; ============================================================================
+
+fungsi artifact_emit_code
+    ; Input: rdi (Artifact ptr), rsi (AST root)
+    ; [AI_HINT: Traverse AST dan emit machine code]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; artifact
+    mov r13, rsi ; AST root
+
+    ; Get emitter
+    mov r14, [r12]
+
+    ; Traverse AST and emit instructions
+    mov rdi, r13
+    mov rsi, r14
+    call Codegen_artifact_traverse_and_emit
+
+    ; Store code size
+    mov rbx, r14
+    add rbx, 8
+    mov rax, [rbx] ; output_pos
+    mov rbx, r12
+    add rbx, 32
+    mov [rbx], rax ; artifact->code_size
+
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; TRAVERSE AST AND EMIT
+; ============================================================================
+
+fungsi artifact_traverse_and_emit
+    ; Input: rdi (AST node), rsi (Emitter ptr)
+    ; [AI_HINT: Recursive traverse dan emit code]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; current node
+    mov r13, rsi ; emitter
+
+    cmp r12, 0
+    jika_sama
+        pop r14
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Get node type
+    mov r14, [r12]
+
+    ; Check node type
+    cmp r14, Compiler_AST_FUNCTION
+    jika_sama
+        ; Emit function
+        mov rdi, r13
+        mov rsi, r12
+        call Codegen_artifact_emit_function
+        lompat traverse_next
+    tutup_jika
+
+    cmp r14, Compiler_AST_INSTRUCTION
+    jika_sama
+        ; Emit instruction
+        mov rdi, r13
+        mov rsi, r12
+        call Codegen_emitter_emit_instruction
+        lompat traverse_next
+    tutup_jika
+
+    ; TODO: Handle other node types
+    ; - AST_CONST
+    ; - AST_DATA
+    ; - AST_STRUKTUR
+    ; - etc.
+
+    traverse_next:
+    ; Traverse next sibling
+    mov rbx, r12
+    add rbx, 8
+    mov rdi, [rbx] ; next
+    mov rsi, r13
+    call Codegen_artifact_traverse_and_emit
+
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; EMIT FUNCTION
+; ============================================================================
+
+fungsi artifact_emit_function
+    ; Input: rdi (Emitter ptr), rsi (AstFunction ptr)
+    ; [AI_HINT: Emit function label dan body]
+
+    push r12
+    push r13
+    mov r12, rdi ; emitter
+    mov r13, rsi ; function node
+
+    ; TODO: Emit function label
+    ; TODO: Emit function prologue (if needed)
+    ; TODO: Traverse function body and emit instructions
+    ; TODO: Emit function epilogue (if needed)
+
+    ; Get body
+    mov rbx, r13
+    add rbx, 40
+    mov rdi, [rbx] ; body (first instruction)
+
+    ; Traverse body
+    mov rsi, r12
+    call Codegen_artifact_traverse_and_emit
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; BUILD INTENTTREE SECTION
+; ============================================================================
+
+fungsi artifact_build_intenttree
+    ; Input: rdi (Artifact ptr), rsi (AST root)
+    ; [AI_HINT: Build IntentTree runtime structure]
+
+    push r12
+    push r13
+    mov r12, rdi ; artifact
+    mov r13, rsi ; AST root
+
+    ; Delegate to intenttree builder
+    mov rdi, r13
+    call Codegen_intenttree_build
+
+    ; Store IntentTree root
+    mov rbx, r12
+    add rbx, 24
+    mov [rbx], rax
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi

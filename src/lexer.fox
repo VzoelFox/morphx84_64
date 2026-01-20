@@ -1,24 +1,51 @@
+; ============================================================================
+; LEXER - Morph Self-Host Compiler
+; ============================================================================
+; [AI_HINT: Lexical analyzer yang mengubah source code menjadi token stream]
+;
+; Lexer membaca source file dan menghasilkan tokens.
+; Setiap token memiliki type, value, dan position (line, col).
+
+; ============================================================================
+; LEXER STRUCTURE
+; ============================================================================
+
 struktur Lexer
-    prop source 8      ; Pointer to full source text
-    prop length 8      ; Total length
-    prop pos 8         ; Current index
-    prop char 1        ; Current char (cached)
+    prop source 8         ; Pointer to source text
+    prop length 8         ; Total length of source
+    prop pos 8            ; Current position in source
+    prop line 8           ; Current line number (1-based)
+    prop col 8            ; Current column number (1-based)
+    prop token_start 8    ; Start position of current token
+    prop token_line 8     ; Line where current token started
+    prop token_col 8      ; Column where current token started
 tutup_struktur
+
+; ============================================================================
+; LEXER CREATION
+; ============================================================================
 
 fungsi lexer_new
     ; Input: rdi (filename_ptr)
     ; Output: rax (Lexer ptr) or 0 if fail
+    ; [AI_HINT: Buat lexer baru dari file]
 
+    push r12
+    push r13
+    push r14
     push rdi
+
     ; 1. Open File
-    ; rdi is filename
     mov rsi, Compiler_O_RDONLY
     mov rdx, 0
     call MorphLib_sys_open
 
     cmp rax, 0
-    jika_kurang ; Negative is error
+    jika_kurang
         pop rdi
+        pop r14
+        pop r13
+        pop r12
         mov rax, 0
         ret
     tutup_jika
@@ -45,83 +72,277 @@ fungsi lexer_new
 
     ; 4. Allocate Lexer Struct
     push r14
+    push r13
     mov rdi, Compiler_Lexer_SIZE
     call MorphLib_mem_alloc
+    pop r13
     pop r14
 
     ; Init Struct
-    mov [rax], r13       ; source
+    ; source
+    mov [rax], r13
+
+    ; length
     mov rbx, rax
     add rbx, 8
-    mov [rbx], r14       ; length
+    mov [rbx], r14
 
+    ; pos = 0
     add rbx, 8
     mov rdx, 0
-    mov [rbx], rdx       ; pos = 0
+    mov [rbx], rdx
 
+    ; line = 1
+    add rbx, 8
+    mov rdx, 1
+    mov [rbx], rdx
+
+    ; col = 1
+    add rbx, 8
+    mov rdx, 1
+    mov [rbx], rdx
+
+    ; token_start = 0
+    add rbx, 8
+    mov rdx, 0
+    mov [rbx], rdx
+
+    ; token_line = 1
+    add rbx, 8
+    mov rdx, 1
+    mov [rbx], rdx
+
+    ; token_col = 1
+    add rbx, 8
+    mov rdx, 1
+    mov [rbx], rdx
+
+    pop r14
+    pop r13
+    pop r12
     ret
 tutup_fungsi
 
+; ============================================================================
+; LEXER PRIMITIVES
+; ============================================================================
+
 fungsi lexer_peek
     ; Input: rdi (Lexer ptr)
-    ; Output: rax (char)
+    ; Output: rax (current char, 0 if EOF)
+    ; [AI_HINT: Lihat karakter saat ini tanpa advance]
 
+    ; Get pos
     mov rbx, rdi
-    add rbx, 16 ; pos offset
+    add rbx, 16
     mov rcx, [rbx] ; rcx = pos
 
+    ; Get length
     mov rbx, rdi
-    add rbx, 8 ; length offset
-    mov rdx, [rbx] ; rdx = len
+    add rbx, 8
+    mov rdx, [rbx] ; rdx = length
 
+    ; Check EOF
     cmp rcx, rdx
     jika_diatas_sama
-        mov rax, 0 ; EOF
+        mov rax, 0
         ret
     tutup_jika
 
     ; Get char at source[pos]
     mov rbx, [rdi] ; source ptr
     add rbx, rcx
-    movzx rax, [rbx] ; FIX: Removed 'byte'
+    movzx rax, [rbx]
+    ret
+tutup_fungsi
+
+fungsi lexer_peek_next
+    ; Input: rdi (Lexer ptr)
+    ; Output: rax (next char, 0 if EOF)
+    ; [AI_HINT: Lihat karakter berikutnya (pos+1)]
+
+    ; Get pos + 1
+    mov rbx, rdi
+    add rbx, 16
+    mov rcx, [rbx]
+    inc rcx ; pos + 1
+
+    ; Get length
+    mov rbx, rdi
+    add rbx, 8
+    mov rdx, [rbx]
+
+    ; Check EOF
+    cmp rcx, rdx
+    jika_diatas_sama
+        mov rax, 0
+        ret
+    tutup_jika
+
+    ; Get char at source[pos+1]
+    mov rbx, [rdi]
+    add rbx, rcx
+    movzx rax, [rbx]
     ret
 tutup_fungsi
 
 fungsi lexer_advance
     ; Input: rdi (Lexer ptr)
-    ; Output: rax (char)
+    ; Output: rax (char yang di-advance, 0 if was EOF)
+    ; [AI_HINT: Maju satu karakter, update line/col]
+
+    push r12
+    mov r12, rdi
 
     call Compiler_lexer_peek
-    push rax
+    push rax ; save char
+
+    cmp rax, 0
+    jika_sama
+        pop rax
+        pop r12
+        ret
+    tutup_jika
 
     ; pos++
-    mov rbx, rdi
+    mov rbx, r12
     add rbx, 16
     mov rcx, [rbx]
     inc rcx
     mov [rbx], rcx
 
+    ; Update line/col
     pop rax
+    push rax
+
+    cmp rax, 10 ; newline
+    jika_sama
+        ; line++, col = 1
+        mov rbx, r12
+        add rbx, 24
+        mov rcx, [rbx]
+        inc rcx
+        mov [rbx], rcx
+
+        mov rbx, r12
+        add rbx, 32
+        mov rcx, 1
+        mov [rbx], rcx
+    lainnya
+        ; col++
+        mov rbx, r12
+        add rbx, 32
+        mov rcx, [rbx]
+        inc rcx
+        mov [rbx], rcx
+    tutup_jika
+
+    pop rax
+    pop r12
     ret
 tutup_fungsi
 
+fungsi lexer_mark_token_start
+    ; Input: rdi (Lexer ptr)
+    ; [AI_HINT: Tandai posisi awal token saat ini]
+
+    ; token_start = pos
+    mov rbx, rdi
+    add rbx, 16
+    mov rax, [rbx] ; pos
+
+    mov rbx, rdi
+    add rbx, 40
+    mov [rbx], rax ; token_start
+
+    ; token_line = line
+    mov rbx, rdi
+    add rbx, 24
+    mov rax, [rbx] ; line
+
+    mov rbx, rdi
+    add rbx, 48
+    mov [rbx], rax ; token_line
+
+    ; token_col = col
+    mov rbx, rdi
+    add rbx, 32
+    mov rax, [rbx] ; col
+
+    mov rbx, rdi
+    add rbx, 56
+    mov [rbx], rax ; token_col
+
+    ret
+tutup_fungsi
+
+fungsi lexer_get_token_ptr
+    ; Input: rdi (Lexer ptr)
+    ; Output: rax (pointer to start of current token in source)
+    ; [AI_HINT: Dapatkan pointer ke awal token]
+
+    mov rbx, rdi
+    add rbx, 40
+    mov rcx, [rbx] ; token_start
+
+    mov rax, [rdi] ; source
+    add rax, rcx
+    ret
+tutup_fungsi
+
+fungsi lexer_get_token_len
+    ; Input: rdi (Lexer ptr)
+    ; Output: rax (length of current token)
+    ; [AI_HINT: Dapatkan panjang token saat ini]
+
+    ; pos - token_start
+    mov rbx, rdi
+    add rbx, 16
+    mov rax, [rbx] ; pos
+
+    mov rbx, rdi
+    add rbx, 40
+    mov rcx, [rbx] ; token_start
+
+    sub rax, rcx
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CHARACTER CLASSIFICATION
+; ============================================================================
+
 fungsi is_whitespace
     ; Input: rdi (char)
-    ; Output: rax (1 yes, 0 no)
+    ; Output: rax (1 if whitespace, 0 otherwise)
 
-    cmp rdi, 32 ; Space
+    cmp rdi, 32 ; space
     jika_sama
         mov rax, 1
         ret
     tutup_jika
 
-    cmp rdi, 10 ; Newline
+    cmp rdi, 9 ; tab
     jika_sama
         mov rax, 1
         ret
     tutup_jika
 
-    cmp rdi, 9 ; Tab
+    cmp rdi, 13 ; carriage return
+    jika_sama
+        mov rax, 1
+        ret
+    tutup_jika
+
+    mov rax, 0
+    ret
+tutup_fungsi
+
+fungsi is_newline
+    ; Input: rdi (char)
+    ; Output: rax (1 if newline, 0 otherwise)
+
+    cmp rdi, 10
     jika_sama
         mov rax, 1
         ret
@@ -133,35 +354,58 @@ tutup_fungsi
 
 fungsi is_alpha
     ; Input: rdi (char)
-    ; Output: rax (1 yes, 0 no)
+    ; Output: rax (1 if a-z, A-Z, or _, 0 otherwise)
 
-    ; a-z (97-122)
+    ; Check a-z (97-122)
     cmp rdi, 97
     jika_kurang
-        ; Check A-Z (65-90)
-        cmp rdi, 65
-        jika_kurang
-            mov rax, 0
-            ret
-        tutup_jika
+        lompat check_upper
+    tutup_jika
+    cmp rdi, 122
+    jika_lebih
+        mov rax, 0
+        ret
+    tutup_jika
+    mov rax, 1
+    ret
 
-        cmp rdi, 90
-        jika_lebih
-            ; Between Z and a
-            cmp rdi, 95 ; _ (Underscore)
-            jika_sama
-                mov rax, 1
-                ret
-            tutup_jika
-            mov rax, 0
-            ret
-        tutup_jika
+    check_upper:
+    ; Check A-Z (65-90)
+    cmp rdi, 65
+    jika_kurang
+        lompat check_underscore
+    tutup_jika
+    cmp rdi, 90
+    jika_lebih
+        lompat check_underscore
+    tutup_jika
+    mov rax, 1
+    ret
 
+    check_underscore:
+    ; Check _ (95)
+    cmp rdi, 95
+    jika_sama
         mov rax, 1
         ret
     tutup_jika
 
-    cmp rdi, 122
+    mov rax, 0
+    ret
+tutup_fungsi
+
+fungsi is_digit
+    ; Input: rdi (char)
+    ; Output: rax (1 if 0-9, 0 otherwise)
+    ; [AI_HINT: Cek apakah karakter adalah digit]
+
+    cmp rdi, 48 ; '0'
+    jika_kurang
+        mov rax, 0
+        ret
+    tutup_jika
+
+    cmp rdi, 57 ; '9'
     jika_lebih
         mov rax, 0
         ret
@@ -171,74 +415,826 @@ fungsi is_alpha
     ret
 tutup_fungsi
 
-fungsi lexer_next_token
-    ; Input: rdi (Lexer ptr)
-    ; Output: rax (Token Type)
+fungsi is_hex_digit
+    ; Input: rdi (char)
+    ; Output: rax (1 if 0-9, a-f, A-F, 0 otherwise)
+    ; [AI_HINT: Cek apakah karakter adalah hex digit]
 
-    ; Skip Whitespace
-    loop skip_ws
+    ; Check 0-9
+    push rdi
+    call Compiler_is_digit
+    pop rdi
+    cmp rax, 1
+    jika_sama
+        ret
+    tutup_jika
+
+    ; Check a-f (97-102)
+    cmp rdi, 97
+    jika_kurang
+        lompat check_upper_hex
+    tutup_jika
+    cmp rdi, 102
+    jika_lebih
+        mov rax, 0
+        ret
+    tutup_jika
+    mov rax, 1
+    ret
+
+    check_upper_hex:
+    ; Check A-F (65-70)
+    cmp rdi, 65
+    jika_kurang
+        mov rax, 0
+        ret
+    tutup_jika
+    cmp rdi, 70
+    jika_lebih
+        mov rax, 0
+        ret
+    tutup_jika
+    mov rax, 1
+    ret
+tutup_fungsi
+
+fungsi is_alnum
+    ; Input: rdi (char)
+    ; Output: rax (1 if alpha or digit, 0 otherwise)
+    ; [AI_HINT: Cek apakah karakter adalah alphanumeric]
+
+    push rdi
+    call Compiler_is_alpha
+    pop rdi
+    cmp rax, 1
+    jika_sama
+        ret
+    tutup_jika
+
+    call Compiler_is_digit
+    ret
+tutup_fungsi
+
+; ============================================================================
+; TOKEN LEXING FUNCTIONS
+; ============================================================================
+
+fungsi lexer_skip_whitespace
+    ; Input: rdi (Lexer ptr)
+    ; [AI_HINT: Skip whitespace dan newlines]
+
+    push r12
+    mov r12, rdi
+
+    loop skip_ws_loop
+        mov rdi, r12
         call Compiler_lexer_peek
         mov rsi, rax
-        cmp rax, 0
+
+        cmp rsi, 0
         jika_sama
-             mov rax, Compiler_TOKEN_EOF
-             ret
+            henti
         tutup_jika
 
-        push rdi
+        ; Check whitespace (space, tab, cr)
+        push rsi
         mov rdi, rsi
         call Compiler_is_whitespace
-        pop rdi
-
+        pop rsi
         cmp rax, 1
         jika_sama
+            mov rdi, r12
             call Compiler_lexer_advance
-        lainnya
+            lanjut
+        tutup_jika
+
+        ; Check newline
+        mov rdi, rsi
+        call Compiler_is_newline
+        cmp rax, 1
+        jika_sama
+            mov rdi, r12
+            call Compiler_lexer_advance
+            lanjut
+        tutup_jika
+
+        ; Not whitespace
+        henti
+    tutup_loop
+
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi lexer_skip_comment
+    ; Input: rdi (Lexer ptr)
+    ; Output: rax (1 if comment was skipped, 0 otherwise)
+    ; [AI_HINT: Skip comment dari ; sampai newline]
+
+    push r12
+    mov r12, rdi
+
+    call Compiler_lexer_peek
+    cmp rax, 59 ; ';'
+    jika_beda
+        mov rax, 0
+        pop r12
+        ret
+    tutup_jika
+
+    ; Skip until newline or EOF
+    loop skip_comment_loop
+        mov rdi, r12
+        call Compiler_lexer_advance
+
+        mov rdi, r12
+        call Compiler_lexer_peek
+
+        cmp rax, 0 ; EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, 10 ; newline
+        jika_sama
+            mov rdi, r12
+            call Compiler_lexer_advance
             henti
         tutup_jika
     tutup_loop
 
-    ; Check Char
+    mov rax, 1
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi lexer_lex_number
+    ; Input: rdi (Lexer ptr), rsi (Token ptr)
+    ; Output: rax (1 if success, 0 if not a number)
+    ; [AI_HINT: Lex number literal (decimal atau hex)]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; lexer
+    mov r13, rsi ; token
+
+    ; Mark token start
+    mov rdi, r12
+    call Compiler_lexer_mark_token_start
+
+    ; Check first char
+    mov rdi, r12
     call Compiler_lexer_peek
-    mov rsi, rax ; Current Char
+    mov r14, rax ; first char
+
+    ; Must start with digit
+    mov rdi, r14
+    call Compiler_is_digit
+    cmp rax, 0
+    jika_sama
+        mov rax, 0
+        pop r14
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Check for hex (0x or 0X)
+    cmp r14, 48 ; '0'
+    jika_sama
+        mov rdi, r12
+        call Compiler_lexer_peek_next
+        cmp rax, 120 ; 'x'
+        jika_sama
+            lompat lex_hex
+        tutup_jika
+        cmp rax, 88 ; 'X'
+        jika_sama
+            lompat lex_hex
+        tutup_jika
+    tutup_jika
+
+    ; Decimal number
+    mov r14, 0 ; accumulator
+
+    loop lex_dec_loop
+        mov rdi, r12
+        call Compiler_lexer_peek
+        mov rsi, rax
+
+        mov rdi, rsi
+        call Compiler_is_digit
+        cmp rax, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        ; r14 = r14 * 10 + digit
+        mov rax, r14
+        mov rbx, 10
+        imul rax, rbx
+        mov r14, rax
+
+        ; digit = char - '0'
+        sub rsi, 48
+        add r14, rsi
+
+        mov rdi, r12
+        call Compiler_lexer_advance
+    tutup_loop
+
+    lompat lex_number_done
+
+    lex_hex:
+    ; Skip '0x'
+    mov rdi, r12
+    call Compiler_lexer_advance
+    mov rdi, r12
+    call Compiler_lexer_advance
+
+    mov r14, 0 ; accumulator
+
+    loop lex_hex_loop
+        mov rdi, r12
+        call Compiler_lexer_peek
+        mov rsi, rax
+
+        mov rdi, rsi
+        call Compiler_is_hex_digit
+        cmp rax, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        ; r14 = r14 * 16 + digit
+        mov rax, r14
+        shl rax, 4
+        mov r14, rax
+
+        ; Convert char to value
+        cmp rsi, 57 ; <= '9'
+        jika_lebih
+            ; a-f or A-F
+            cmp rsi, 97 ; >= 'a'
+            jika_kurang
+                ; A-F: value = char - 'A' + 10
+                sub rsi, 55
+            lainnya
+                ; a-f: value = char - 'a' + 10
+                sub rsi, 87
+            tutup_jika
+        lainnya
+            ; 0-9: value = char - '0'
+            sub rsi, 48
+        tutup_jika
+
+        add r14, rsi
+
+        mov rdi, r12
+        call Compiler_lexer_advance
+    tutup_loop
+
+    lex_number_done:
+    ; Fill Token struct
+    ; type = TOKEN_NUMBER
+    mov rax, Compiler_TOKEN_NUMBER
+    mov [r13], rax
+
+    ; value_ptr = token start
+    mov rdi, r12
+    call Compiler_lexer_get_token_ptr
+    mov rbx, r13
+    add rbx, 8
+    mov [rbx], rax
+
+    ; value_len
+    mov rdi, r12
+    call Compiler_lexer_get_token_len
+    mov rbx, r13
+    add rbx, 16
+    mov [rbx], rax
+
+    ; value_num = r14
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], r14
+
+    ; line
+    mov rbx, r12
+    add rbx, 48
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; col
+    mov rbx, r12
+    add rbx, 56
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 40
+    mov [rbx], rax
+
+    mov rax, 1
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi lexer_lex_string
+    ; Input: rdi (Lexer ptr), rsi (Token ptr)
+    ; Output: rax (1 if success, 0 if not a string)
+    ; [AI_HINT: Lex string literal "..."]
+
+    push r12
+    push r13
+    mov r12, rdi ; lexer
+    mov r13, rsi ; token
+
+    ; Check opening quote
+    mov rdi, r12
+    call Compiler_lexer_peek
+    cmp rax, 34 ; '"'
+    jika_beda
+        mov rax, 0
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Skip opening quote
+    mov rdi, r12
+    call Compiler_lexer_advance
+
+    ; Mark token start (after quote)
+    mov rdi, r12
+    call Compiler_lexer_mark_token_start
+
+    ; Consume until closing quote or EOF
+    loop lex_string_loop
+        mov rdi, r12
+        call Compiler_lexer_peek
+
+        cmp rax, 0 ; EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, 34 ; '"'
+        jika_sama
+            henti
+        tutup_jika
+
+        ; TODO: Handle escape sequences (\n, \t, \\, etc)
+
+        mov rdi, r12
+        call Compiler_lexer_advance
+    tutup_loop
+
+    ; Fill Token
+    mov rax, Compiler_TOKEN_STRING
+    mov [r13], rax
+
+    ; value_ptr
+    mov rdi, r12
+    call Compiler_lexer_get_token_ptr
+    mov rbx, r13
+    add rbx, 8
+    mov [rbx], rax
+
+    ; value_len
+    mov rdi, r12
+    call Compiler_lexer_get_token_len
+    mov rbx, r13
+    add rbx, 16
+    mov [rbx], rax
+
+    ; value_num = 0
+    mov rbx, r13
+    add rbx, 24
+    mov rax, 0
+    mov [rbx], rax
+
+    ; line
+    mov rbx, r12
+    add rbx, 48
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; col
+    mov rbx, r12
+    add rbx, 56
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 40
+    mov [rbx], rax
+
+    ; Skip closing quote
+    mov rdi, r12
+    call Compiler_lexer_peek
+    cmp rax, 34
+    jika_sama
+        mov rdi, r12
+        call Compiler_lexer_advance
+    tutup_jika
+
+    mov rax, 1
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi lexer_lex_identifier
+    ; Input: rdi (Lexer ptr), rsi (Token ptr)
+    ; Output: rax (1 if success, 0 if not identifier)
+    ; [AI_HINT: Lex identifier atau keyword]
+
+    push r12
+    push r13
+    mov r12, rdi ; lexer
+    mov r13, rsi ; token
+
+    ; Mark token start
+    mov rdi, r12
+    call Compiler_lexer_mark_token_start
+
+    ; Check first char is alpha
+    mov rdi, r12
+    call Compiler_lexer_peek
+
+    push rax
+    mov rdi, rax
+    call Compiler_is_alpha
+    mov rsi, rax
+    pop rax
 
     cmp rsi, 0
     jika_sama
-        mov rax, Compiler_TOKEN_EOF
-        ret
+        ; Check if starts with . (label like .L_xxx)
+        cmp rax, 46 ; '.'
+        jika_beda
+            mov rax, 0
+            pop r13
+            pop r12
+            ret
+        tutup_jika
+        ; It's a local label, advance past .
+        mov rdi, r12
+        call Compiler_lexer_advance
     tutup_jika
 
-    ; Check Alpha (Keyword/Identifier)
-    push rdi
-    mov rdi, rsi
-    call Compiler_is_alpha
-    pop rdi
+    ; Consume alphanumeric chars
+    loop lex_ident_loop
+        mov rdi, r12
+        call Compiler_lexer_peek
+        mov rsi, rax
 
+        cmp rsi, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        mov rdi, rsi
+        call Compiler_is_alnum
+        cmp rax, 1
+        jika_sama
+            mov rdi, r12
+            call Compiler_lexer_advance
+            lanjut
+        tutup_jika
+
+        henti
+    tutup_loop
+
+    ; Fill Token (default to IDENTIFIER, caller can refine to keyword)
+    mov rax, Compiler_TOKEN_IDENTIFIER
+    mov [r13], rax
+
+    ; value_ptr
+    mov rdi, r12
+    call Compiler_lexer_get_token_ptr
+    mov rbx, r13
+    add rbx, 8
+    mov [rbx], rax
+
+    ; value_len
+    mov rdi, r12
+    call Compiler_lexer_get_token_len
+    mov rbx, r13
+    add rbx, 16
+    mov [rbx], rax
+
+    ; value_num = 0
+    mov rbx, r13
+    add rbx, 24
+    mov rax, 0
+    mov [rbx], rax
+
+    ; line
+    mov rbx, r12
+    add rbx, 48
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; col
+    mov rbx, r12
+    add rbx, 56
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 40
+    mov [rbx], rax
+
+    mov rax, 1
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi lexer_lex_symbol
+    ; Input: rdi (Lexer ptr), rsi (Token ptr)
+    ; Output: rax (token type, or 0 if not a symbol)
+    ; [AI_HINT: Lex single-char symbols: , : [ ] ( ) + - * .]
+
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13, rsi
+
+    mov rdi, r12
+    call Compiler_lexer_mark_token_start
+
+    mov rdi, r12
+    call Compiler_lexer_peek
+    mov rsi, rax
+
+    mov rax, 0 ; default: not a symbol
+
+    cmp rsi, 44 ; ','
+    jika_sama
+        mov rax, Compiler_TOKEN_COMMA
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 58 ; ':'
+    jika_sama
+        mov rax, Compiler_TOKEN_COLON
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 91 ; '['
+    jika_sama
+        mov rax, Compiler_TOKEN_LBRACKET
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 93 ; ']'
+    jika_sama
+        mov rax, Compiler_TOKEN_RBRACKET
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 40 ; '('
+    jika_sama
+        mov rax, Compiler_TOKEN_LPAREN
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 41 ; ')'
+    jika_sama
+        mov rax, Compiler_TOKEN_RPAREN
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 43 ; '+'
+    jika_sama
+        mov rax, Compiler_TOKEN_PLUS
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 45 ; '-'
+    jika_sama
+        mov rax, Compiler_TOKEN_MINUS
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 42 ; '*'
+    jika_sama
+        mov rax, Compiler_TOKEN_STAR
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 46 ; '.'
+    jika_sama
+        ; Could be local label - check if followed by alpha
+        mov rdi, r12
+        call Compiler_lexer_peek_next
+        mov rdi, rax
+        call Compiler_is_alpha
+        cmp rax, 1
+        jika_sama
+            ; It's a local label, not a dot symbol
+            mov rax, 0
+            pop r13
+            pop r12
+            ret
+        tutup_jika
+        mov rax, Compiler_TOKEN_DOT
+        lompat lex_symbol_done
+    tutup_jika
+
+    cmp rsi, 35 ; '#'
+    jika_sama
+        mov rax, Compiler_TOKEN_HASH
+        lompat lex_symbol_done
+    tutup_jika
+
+    ; Not a recognized symbol
+    pop r13
+    pop r12
+    ret
+
+    lex_symbol_done:
+    push rax ; save token type
+
+    ; Advance past symbol
+    mov rdi, r12
+    call Compiler_lexer_advance
+
+    pop rax ; token type
+
+    ; Fill Token
+    mov [r13], rax
+
+    ; value_ptr
+    mov rdi, r12
+    call Compiler_lexer_get_token_ptr
+    mov rbx, r13
+    add rbx, 8
+    mov [rbx], rax
+
+    ; value_len = 1
+    mov rbx, r13
+    add rbx, 16
+    mov rcx, 1
+    mov [rbx], rcx
+
+    ; value_num = char
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], rsi
+
+    ; line
+    mov rbx, r12
+    add rbx, 48
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; col
+    mov rbx, r12
+    add rbx, 56
+    mov rax, [rbx]
+    mov rbx, r13
+    add rbx, 40
+    mov [rbx], rax
+
+    ; Return token type
+    mov rax, [r13]
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; MAIN LEXER FUNCTION
+; ============================================================================
+
+fungsi lexer_next_token
+    ; Input: rdi (Lexer ptr), rsi (Token ptr)
+    ; Output: rax (token type)
+    ; [AI_HINT: Get next token dari source]
+
+    push r12
+    push r13
+    mov r12, rdi ; lexer
+    mov r13, rsi ; token
+
+    ; Skip whitespace and comments
+    lex_again:
+    mov rdi, r12
+    call Compiler_lexer_skip_whitespace
+
+    mov rdi, r12
+    call Compiler_lexer_skip_comment
     cmp rax, 1
     jika_sama
-        ; Consume full identifier
-        loop consume_ident
-             call Compiler_lexer_advance
+        lompat lex_again
+    tutup_jika
 
-             call Compiler_lexer_peek
-             mov rsi, rax
-             push rdi
-             mov rdi, rsi
-             call Compiler_is_alpha
-             pop rdi
-             cmp rax, 0
-             jika_sama
-                 henti
-             tutup_jika
-        tutup_loop
-
-        ; TODO: Check if keyword (simplified: always IDENTIFIER/KEYWORD)
-        mov rax, Compiler_TOKEN_KEYWORD
+    ; Check EOF
+    mov rdi, r12
+    call Compiler_lexer_peek
+    cmp rax, 0
+    jika_sama
+        mov rax, Compiler_TOKEN_EOF
+        mov [r13], rax
+        pop r13
+        pop r12
         ret
     tutup_jika
 
-    ; Default: Consume and Unknown
+    ; Try number
+    mov rdi, r12
+    mov rsi, r13
+    call Compiler_lexer_lex_number
+    cmp rax, 1
+    jika_sama
+        mov rax, [r13]
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Try string
+    mov rdi, r12
+    mov rsi, r13
+    call Compiler_lexer_lex_string
+    cmp rax, 1
+    jika_sama
+        mov rax, [r13]
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Try symbol
+    mov rdi, r12
+    mov rsi, r13
+    call Compiler_lexer_lex_symbol
+    cmp rax, 0
+    jika_beda
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Try identifier/keyword
+    mov rdi, r12
+    mov rsi, r13
+    call Compiler_lexer_lex_identifier
+    cmp rax, 1
+    jika_sama
+        ; Get value_ptr and value_len from token
+        mov rdi, r13
+        add rdi, 8
+        mov rdi, [rdi] ; value_ptr
+        mov rsi, r13
+        add rsi, 16
+        mov rsi, [rsi] ; value_len
+
+        ; Check if it's a register
+        push rdi
+        push rsi
+        call Compiler_is_register
+        pop rsi
+        pop rdi
+        cmp rax, 1
+        jika_sama
+            mov rax, Compiler_TOKEN_REGISTER
+            mov [r13], rax
+            pop r13
+            pop r12
+            ret
+        tutup_jika
+
+        ; Check if it's a keyword
+        call Compiler_keyword_lookup
+        mov [r13], rax
+
+        mov rax, [r13]
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Unknown - consume and return UNKNOWN
+    mov rdi, r12
+    call Compiler_lexer_mark_token_start
+    mov rdi, r12
     call Compiler_lexer_advance
+
     mov rax, Compiler_TOKEN_UNKNOWN
+    mov [r13], rax
+
+    pop r13
+    pop r12
     ret
 tutup_fungsi

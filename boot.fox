@@ -16,6 +16,9 @@ push rdi
 
 call MorphLib_heap_init
 
+; TODO: Enable setelah self-host parser
+; call MorphLib_signal_install_handlers
+
 ; Restore Args for Startup Init
 pop rdi
 pop rsi

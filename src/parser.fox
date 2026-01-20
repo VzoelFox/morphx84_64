@@ -1,0 +1,1690 @@
+; ============================================================================
+; PARSER - Morph Self-Host Compiler
+; ============================================================================
+; [AI_HINT: Parser yang membangun IntentTree dari token stream]
+;
+; Parser membaca tokens dan membangun AST untuk code generation.
+; Struktur mengikuti hierarki: Unit → Shard → Fragment
+; dengan nodes untuk functions, instructions, conditionals, loops, dll.
+
+; ============================================================================
+; AST NODE TYPES
+; ============================================================================
+
+const AST_UNIT 1
+const AST_SHARD 2
+const AST_FUNCTION 3
+const AST_INSTRUCTION 4
+const AST_LABEL 5
+const AST_CONST 6
+const AST_DATA 7
+const AST_STRUKTUR 8
+const AST_PROP 9
+const AST_IF 10
+const AST_LOOP 11
+const AST_IMPORT 12
+const AST_BLOCK 13
+const AST_OPERAND 14
+
+; ============================================================================
+; OPERAND TYPES
+; ============================================================================
+
+const OPERAND_NONE 0
+const OPERAND_REG 1        ; rax, rbx, etc
+const OPERAND_IMM 2        ; 123, 0xFF
+const OPERAND_MEM 3        ; [rax], [rbx+8]
+const OPERAND_LABEL 4      ; function_name, label
+const OPERAND_STRING 5     ; "hello"
+
+; ============================================================================
+; AST NODE STRUCTURES
+; ============================================================================
+
+; Generic Node Header (all nodes start with this)
+; [type:8][next:8][parent:8]
+const AST_NODE_SIZE 24
+
+struktur AstNode
+    prop type 8         ; Node type (AST_* constants)
+    prop next 8         ; Next sibling node
+    prop parent 8       ; Parent node
+tutup_struktur
+
+; Function Node
+; [type:8][next:8][parent:8][name_ptr:8][name_len:8][body:8][local_labels:8]
+const AST_FUNC_SIZE 56
+
+struktur AstFunction
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop name_ptr 8     ; Function name string ptr
+    prop name_len 8     ; Function name length
+    prop body 8         ; First child node (instructions)
+    prop local_labels 8 ; Linked list of local labels
+tutup_struktur
+
+; Instruction Node
+; [type:8][next:8][parent:8][mnemonic_ptr:8][mnemonic_len:8][op1:8][op2:8][op3:8]
+const AST_INSTR_SIZE 64
+
+struktur AstInstruction
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop mnemonic_ptr 8 ; Instruction mnemonic string
+    prop mnemonic_len 8
+    prop op1 8          ; First operand (AstOperand ptr)
+    prop op2 8          ; Second operand
+    prop op3 8          ; Third operand (rare)
+tutup_struktur
+
+; Operand Node
+; [type:8][next:8][parent:8][kind:8][value_ptr:8][value_len:8][value_num:8][base_reg:8][index_reg:8][scale:8][disp:8]
+const AST_OPERAND_SIZE 88
+
+struktur AstOperand
+    prop type 8         ; AST_OPERAND
+    prop next 8
+    prop parent 8
+    prop kind 8         ; OPERAND_* type
+    prop value_ptr 8    ; String value (for reg name, label)
+    prop value_len 8
+    prop value_num 8    ; Numeric value (for immediates)
+    prop base_reg 8     ; For memory: base register ptr
+    prop index_reg 8    ; For memory: index register ptr
+    prop scale 8        ; For memory: scale (1,2,4,8)
+    prop disp 8         ; For memory: displacement
+tutup_struktur
+
+; Label Node
+; [type:8][next:8][parent:8][name_ptr:8][name_len:8][target:8]
+const AST_LABEL_SIZE 48
+
+struktur AstLabel
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop name_ptr 8     ; Label name
+    prop name_len 8
+    prop target 8       ; What this label points to (next instruction)
+tutup_struktur
+
+; Const Node
+; [type:8][next:8][parent:8][name_ptr:8][name_len:8][value:8]
+const AST_CONST_SIZE 48
+
+struktur AstConst
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop name_ptr 8
+    prop name_len 8
+    prop value 8        ; Numeric value
+tutup_struktur
+
+; Data Node
+; [type:8][next:8][parent:8][data_ptr:8][data_len:8]
+const AST_DATA_SIZE 40
+
+struktur AstData
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop data_ptr 8     ; String data pointer
+    prop data_len 8     ; String length
+tutup_struktur
+
+; Struktur Node (struct definition)
+; [type:8][next:8][parent:8][name_ptr:8][name_len:8][props:8][total_size:8]
+const AST_STRUKTUR_SIZE 56
+
+struktur AstStruktur
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop name_ptr 8
+    prop name_len 8
+    prop props 8        ; First property node
+    prop total_size 8   ; Computed total size
+tutup_struktur
+
+; Property Node (struct field)
+; [type:8][next:8][parent:8][name_ptr:8][name_len:8][size:8][offset:8]
+const AST_PROP_SIZE 56
+
+struktur AstProp
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop name_ptr 8
+    prop name_len 8
+    prop size 8         ; Size in bytes
+    prop offset 8       ; Offset from struct start
+tutup_struktur
+
+; If Node (jika_* block)
+; [type:8][next:8][parent:8][condition:8][then_body:8][else_body:8]
+const AST_IF_SIZE 48
+
+struktur AstIf
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop condition 8    ; Condition type (from jika_sama, jika_beda, etc)
+    prop then_body 8    ; First node in then block
+    prop else_body 8    ; First node in else block (lainnya)
+tutup_struktur
+
+; Loop Node
+; [type:8][next:8][parent:8][body:8][loop_type:8]
+const AST_LOOP_SIZE 40
+
+struktur AstLoop
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop body 8         ; First node in loop body
+    prop loop_type 8    ; 0=loop, 1=selama
+tutup_struktur
+
+; Import Node (Ambil)
+; [type:8][next:8][parent:8][filename_ptr:8][filename_len:8]
+const AST_IMPORT_SIZE 40
+
+struktur AstImport
+    prop type 8
+    prop next 8
+    prop parent 8
+    prop filename_ptr 8
+    prop filename_len 8
+tutup_struktur
+
+; ============================================================================
+; PARSER STATE
+; ============================================================================
+
+struktur Parser
+    prop lexer 8         ; Lexer pointer
+    prop current_token 8 ; Current token pointer
+    prop root 8          ; Root AST node (Unit)
+    prop current_func 8  ; Current function being parsed
+    prop current_struct 8 ; Current struct being parsed
+    prop error 8         ; Error flag
+    prop error_msg 8     ; Error message pointer
+tutup_struktur
+
+; ============================================================================
+; PARSER CREATION
+; ============================================================================
+
+fungsi parser_new
+    ; Input: rdi (Lexer ptr)
+    ; Output: rax (Parser ptr)
+    ; [AI_HINT: Buat parser baru dengan lexer]
+
+    push r12
+    mov r12, rdi ; save lexer
+
+    ; Allocate Parser struct
+    mov rdi, Compiler_Parser_SIZE
+    call MorphLib_mem_alloc
+    push rax ; save parser ptr
+
+    ; Set lexer
+    mov [rax], r12
+
+    ; Allocate Token for current_token
+    mov rdi, Compiler_Token_SIZE
+    call MorphLib_mem_alloc
+    pop rbx ; parser ptr
+    push rbx
+
+    ; Store token ptr
+    mov rcx, rbx
+    add rcx, 8
+    mov [rcx], rax
+
+    ; Init other fields to 0
+    mov rdx, 0
+
+    ; root = 0
+    add rcx, 8
+    mov [rcx], rdx
+
+    ; current_func = 0
+    add rcx, 8
+    mov [rcx], rdx
+
+    ; current_struct = 0
+    add rcx, 8
+    mov [rcx], rdx
+
+    ; error = 0
+    add rcx, 8
+    mov [rcx], rdx
+
+    ; error_msg = 0
+    add rcx, 8
+    mov [rcx], rdx
+
+    pop rax ; return parser ptr
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; PARSER HELPERS
+; ============================================================================
+
+fungsi parser_advance
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (token type)
+    ; [AI_HINT: Ambil token berikutnya]
+
+    push r12
+    mov r12, rdi
+
+    ; Get lexer
+    mov rdi, [r12]
+
+    ; Get current_token
+    mov rbx, r12
+    add rbx, 8
+    mov rsi, [rbx]
+
+    call Compiler_lexer_next_token
+
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi parser_peek_type
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (current token type)
+    ; [AI_HINT: Lihat type token saat ini]
+
+    mov rbx, rdi
+    add rbx, 8
+    mov rbx, [rbx] ; token ptr
+    mov rax, [rbx] ; token type
+    ret
+tutup_fungsi
+
+fungsi parser_peek_value_ptr
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (token value_ptr)
+
+    mov rbx, rdi
+    add rbx, 8
+    mov rbx, [rbx] ; token ptr
+    add rbx, 8
+    mov rax, [rbx] ; value_ptr
+    ret
+tutup_fungsi
+
+fungsi parser_peek_value_len
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (token value_len)
+
+    mov rbx, rdi
+    add rbx, 8
+    mov rbx, [rbx] ; token ptr
+    add rbx, 16
+    mov rax, [rbx] ; value_len
+    ret
+tutup_fungsi
+
+fungsi parser_peek_value_num
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (token value_num)
+
+    mov rbx, rdi
+    add rbx, 8
+    mov rbx, [rbx] ; token ptr
+    add rbx, 24
+    mov rax, [rbx] ; value_num
+    ret
+tutup_fungsi
+
+fungsi parser_expect
+    ; Input: rdi (Parser ptr), rsi (expected token type)
+    ; Output: rax (1 if match, 0 if error)
+    ; [AI_HINT: Pastikan token saat ini sesuai yang diharapkan]
+
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13, rsi
+
+    call Compiler_parser_peek_type
+
+    cmp rax, r13
+    jika_sama
+        ; Match - advance
+        mov rdi, r12
+        call Compiler_parser_advance
+        mov rax, 1
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Error - set error flag
+    mov rbx, r12
+    add rbx, 40 ; error field
+    mov rcx, 1
+    mov [rbx], rcx
+
+    mov rax, 0
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; NODE ALLOCATION HELPERS
+; ============================================================================
+
+fungsi parser_alloc_node
+    ; Input: rdi (size), rsi (node type)
+    ; Output: rax (node ptr)
+    ; [AI_HINT: Alokasi node AST dengan type]
+
+    push rsi
+    call MorphLib_mem_alloc
+    pop rsi
+
+    ; Set type
+    mov [rax], rsi
+
+    ; Zero next and parent
+    mov rdx, 0
+    mov rbx, rax
+    add rbx, 8
+    mov [rbx], rdx ; next = 0
+    add rbx, 8
+    mov [rbx], rdx ; parent = 0
+
+    ret
+tutup_fungsi
+
+fungsi parser_append_child
+    ; Input: rdi (parent last child ptr address), rsi (new child)
+    ; [AI_HINT: Tambah child ke linked list]
+    ;
+    ; If *rdi == 0, set *rdi = rsi
+    ; Else traverse to end and link
+
+    mov rax, [rdi]
+    cmp rax, 0
+    jika_sama
+        ; Empty list
+        mov [rdi], rsi
+        ret
+    tutup_jika
+
+    ; Traverse to find last
+    mov rbx, rax ; current
+
+    loop find_last_loop
+        mov rcx, rbx
+        add rcx, 8 ; next field
+        mov rdx, [rcx]
+        cmp rdx, 0
+        jika_sama
+            ; Found last
+            mov [rcx], rsi
+            henti
+        tutup_jika
+        mov rbx, rdx
+    tutup_loop
+
+    ret
+tutup_fungsi
+
+; ============================================================================
+; OPERAND PARSING
+; ============================================================================
+
+fungsi parser_parse_operand
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstOperand ptr, or 0 if none)
+    ; [AI_HINT: Parse satu operand (register, immediate, memory, label)]
+
+    push r12
+    push r13
+    mov r12, rdi
+
+    ; Allocate operand node
+    mov rdi, Compiler_AST_OPERAND_SIZE
+    mov rsi, Compiler_AST_OPERAND
+    call Compiler_parser_alloc_node
+    mov r13, rax ; operand ptr
+
+    ; Check token type
+    mov rdi, r12
+    call Compiler_parser_peek_type
+    mov rsi, rax
+
+    ; Register?
+    cmp rsi, Compiler_TOKEN_REGISTER
+    jika_sama
+        ; Get value
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        push rax
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        mov rcx, rax
+        pop rdx
+
+        ; Set kind = OPERAND_REG
+        mov rax, Compiler_OPERAND_REG
+        mov rbx, r13
+        add rbx, 24
+        mov [rbx], rax
+
+        ; Set value_ptr
+        add rbx, 8
+        mov [rbx], rdx
+
+        ; Set value_len
+        add rbx, 8
+        mov [rbx], rcx
+
+        ; Advance past register
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Number (immediate)?
+    cmp rsi, Compiler_TOKEN_NUMBER
+    jika_sama
+        ; Get numeric value
+        mov rdi, r12
+        call Compiler_parser_peek_value_num
+        mov rcx, rax
+
+        ; Set kind = OPERAND_IMM
+        mov rax, Compiler_OPERAND_IMM
+        mov rbx, r13
+        add rbx, 24
+        mov [rbx], rax
+
+        ; Set value_num
+        mov rbx, r13
+        add rbx, 48
+        mov [rbx], rcx
+
+        ; Advance
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Memory reference [...]?
+    cmp rsi, Compiler_TOKEN_LBRACKET
+    jika_sama
+        ; Skip [
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Set kind = OPERAND_MEM
+        mov rax, Compiler_OPERAND_MEM
+        mov rbx, r13
+        add rbx, 24
+        mov [rbx], rax
+
+        ; Parse base register
+        mov rdi, r12
+        call Compiler_parser_peek_type
+        cmp rax, Compiler_TOKEN_REGISTER
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_peek_value_ptr
+            mov rbx, r13
+            add rbx, 56 ; base_reg
+            mov [rbx], rax
+
+            mov rdi, r12
+            call Compiler_parser_advance
+        tutup_jika
+
+        ; Check for +/- displacement
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_PLUS
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            ; Get displacement value
+            mov rdi, r12
+            call Compiler_parser_peek_value_num
+            mov rbx, r13
+            add rbx, 80 ; disp
+            mov [rbx], rax
+
+            mov rdi, r12
+            call Compiler_parser_advance
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_MINUS
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            ; Get displacement value (negate)
+            mov rdi, r12
+            call Compiler_parser_peek_value_num
+            neg rax
+            mov rbx, r13
+            add rbx, 80 ; disp
+            mov [rbx], rax
+
+            mov rdi, r12
+            call Compiler_parser_advance
+        tutup_jika
+
+        ; Expect ]
+        mov rdi, r12
+        mov rsi, Compiler_TOKEN_RBRACKET
+        call Compiler_parser_expect
+
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Identifier (label reference)?
+    cmp rsi, Compiler_TOKEN_IDENTIFIER
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        push rax
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        mov rcx, rax
+        pop rdx
+
+        ; Set kind = OPERAND_LABEL
+        mov rax, Compiler_OPERAND_LABEL
+        mov rbx, r13
+        add rbx, 24
+        mov [rbx], rax
+
+        ; Set value_ptr
+        add rbx, 8
+        mov [rbx], rdx
+
+        ; Set value_len
+        add rbx, 8
+        mov [rbx], rcx
+
+        ; Advance
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; String?
+    cmp rsi, Compiler_TOKEN_STRING
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        push rax
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        mov rcx, rax
+        pop rdx
+
+        ; Set kind = OPERAND_STRING
+        mov rax, Compiler_OPERAND_STRING
+        mov rbx, r13
+        add rbx, 24
+        mov [rbx], rax
+
+        ; Set value_ptr
+        add rbx, 8
+        mov [rbx], rdx
+
+        ; Set value_len
+        add rbx, 8
+        mov [rbx], rcx
+
+        ; Advance
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; No operand found, return 0
+    mov rax, 0
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; INSTRUCTION PARSING
+; ============================================================================
+
+fungsi parser_parse_instruction
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstInstruction ptr)
+    ; [AI_HINT: Parse instruction dengan operands]
+
+    push r12
+    push r13
+    mov r12, rdi
+
+    ; Allocate instruction node
+    mov rdi, Compiler_AST_INSTR_SIZE
+    mov rsi, Compiler_AST_INSTRUCTION
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Get mnemonic
+    mov rdi, r12
+    call Compiler_parser_peek_value_ptr
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], rax
+
+    mov rdi, r12
+    call Compiler_parser_peek_value_len
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; Advance past mnemonic
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Parse first operand
+    mov rdi, r12
+    call Compiler_parser_parse_operand
+    mov rbx, r13
+    add rbx, 40
+    mov [rbx], rax
+
+    cmp rax, 0
+    jika_sama
+        ; No operands
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Check for comma
+    mov rdi, r12
+    call Compiler_parser_peek_type
+    cmp rax, Compiler_TOKEN_COMMA
+    jika_beda
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Skip comma
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Parse second operand
+    mov rdi, r12
+    call Compiler_parser_parse_operand
+    mov rbx, r13
+    add rbx, 48
+    mov [rbx], rax
+
+    cmp rax, 0
+    jika_sama
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Check for third operand (rare)
+    mov rdi, r12
+    call Compiler_parser_peek_type
+    cmp rax, Compiler_TOKEN_COMMA
+    jika_beda
+        mov rax, r13
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Skip comma
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Parse third operand
+    mov rdi, r12
+    call Compiler_parser_parse_operand
+    mov rbx, r13
+    add rbx, 56
+    mov [rbx], rax
+
+    mov rax, r13
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; FUNCTION PARSING
+; ============================================================================
+
+fungsi parser_parse_function
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstFunction ptr)
+    ; [AI_HINT: Parse fungsi ... tutup_fungsi block]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+
+    ; Skip 'fungsi' token (already verified by caller)
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Allocate function node
+    mov rdi, Compiler_AST_FUNC_SIZE
+    mov rsi, Compiler_AST_FUNCTION
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Get function name
+    mov rdi, r12
+    call Compiler_parser_peek_value_ptr
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], rax
+
+    mov rdi, r12
+    call Compiler_parser_peek_value_len
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    ; Advance past name
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Set current_func in parser
+    mov rbx, r12
+    add rbx, 24
+    mov [rbx], r13
+
+    ; r14 = ptr to body field for appending
+    mov r14, r13
+    add r14, 40
+
+    ; Parse body until tutup_fungsi
+    loop parse_func_body
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_TUTUP_FUNGSI
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            henti
+        tutup_jika
+
+        ; Parse statement
+        mov rdi, r12
+        call Compiler_parser_parse_statement
+        cmp rax, 0
+        jika_sama
+            lanjut
+        tutup_jika
+
+        ; Append to body
+        mov rdi, r14
+        mov rsi, rax
+        call Compiler_parser_append_child
+    tutup_loop
+
+    ; Clear current_func
+    mov rbx, r12
+    add rbx, 24
+    mov rcx, 0
+    mov [rbx], rcx
+
+    mov rax, r13
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; STATEMENT PARSING
+; ============================================================================
+
+fungsi parser_parse_statement
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AST node ptr, or 0)
+    ; [AI_HINT: Parse satu statement (instruction, label, if, loop, etc)]
+
+    push r12
+    mov r12, rdi
+
+    call Compiler_parser_peek_type
+    mov rsi, rax
+
+    ; Label (identifier followed by :)?
+    cmp rsi, Compiler_TOKEN_IDENTIFIER
+    jika_sama
+        ; Check if followed by colon
+        push rsi
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        mov r8, rax
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        mov r9, rax
+        pop rsi
+
+        ; Advance and check for colon
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rdi, r12
+        call Compiler_parser_peek_type
+        cmp rax, Compiler_TOKEN_COLON
+        jika_sama
+            ; It's a label
+            mov rdi, r12
+            call Compiler_parser_advance ; skip :
+
+            ; Allocate label node
+            mov rdi, Compiler_AST_LABEL_SIZE
+            mov rsi, Compiler_AST_LABEL
+            call Compiler_parser_alloc_node
+
+            ; Set name
+            mov rbx, rax
+            add rbx, 24
+            mov [rbx], r8 ; name_ptr
+            add rbx, 8
+            mov [rbx], r9 ; name_len
+
+            pop r12
+            ret
+        lainnya
+            ; It's an instruction - we already consumed the identifier
+            ; Need to create instruction with saved name
+            mov rdi, Compiler_AST_INSTR_SIZE
+            mov rsi, Compiler_AST_INSTRUCTION
+            call Compiler_parser_alloc_node
+            push rax
+
+            ; Set mnemonic
+            mov rbx, rax
+            add rbx, 24
+            mov [rbx], r8
+            add rbx, 8
+            mov [rbx], r9
+
+            ; Parse operands
+            mov rdi, r12
+            call Compiler_parser_parse_operand
+            pop rbx
+            push rbx
+            mov rcx, rbx
+            add rcx, 40
+            mov [rcx], rax
+
+            cmp rax, 0
+            jika_sama
+                pop rax
+                pop r12
+                ret
+            tutup_jika
+
+            ; Check comma for second operand
+            mov rdi, r12
+            call Compiler_parser_peek_type
+            cmp rax, Compiler_TOKEN_COMMA
+            jika_beda
+                pop rax
+                pop r12
+                ret
+            tutup_jika
+
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            mov rdi, r12
+            call Compiler_parser_parse_operand
+            pop rbx
+            push rbx
+            mov rcx, rbx
+            add rcx, 48
+            mov [rcx], rax
+
+            pop rax
+            pop r12
+            ret
+        tutup_jika
+    tutup_jika
+
+    ; jika_* (conditional)?
+    cmp rsi, Compiler_TOKEN_JIKA
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_parse_if
+        pop r12
+        ret
+    tutup_jika
+
+    ; loop?
+    cmp rsi, Compiler_TOKEN_LOOP
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_parse_loop
+        pop r12
+        ret
+    tutup_jika
+
+    ; henti (break)?
+    cmp rsi, Compiler_TOKEN_HENTI
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Create instruction node for 'henti'
+        mov rdi, Compiler_AST_INSTR_SIZE
+        mov rsi, Compiler_AST_INSTRUCTION
+        call Compiler_parser_alloc_node
+
+        ; Mark as henti (mnemonic_len = 0 to signal special)
+        mov rbx, rax
+        add rbx, 32
+        mov rcx, 0
+        mov [rbx], rcx
+
+        pop r12
+        ret
+    tutup_jika
+
+    ; lanjut (continue)?
+    cmp rsi, Compiler_TOKEN_LANJUT
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rdi, Compiler_AST_INSTR_SIZE
+        mov rsi, Compiler_AST_INSTRUCTION
+        call Compiler_parser_alloc_node
+
+        mov rbx, rax
+        add rbx, 32
+        mov rcx, 1  ; 1 = lanjut marker
+        mov [rbx], rcx
+
+        pop r12
+        ret
+    tutup_jika
+
+    ; lompat (jump)?
+    cmp rsi, Compiler_TOKEN_LOMPAT
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rdi, Compiler_AST_INSTR_SIZE
+        mov rsi, Compiler_AST_INSTRUCTION
+        call Compiler_parser_alloc_node
+        push rax
+
+        ; Get label target
+        mov rdi, r12
+        call Compiler_parser_parse_operand
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 40
+        mov [rcx], rax
+
+        mov rbx, rax
+        add rbx, 32
+        mov rcx, 2  ; 2 = lompat marker
+        pop rax
+        mov [rbx], rcx
+
+        pop r12
+        ret
+    tutup_jika
+
+    ; ret/kembali?
+    cmp rsi, Compiler_TOKEN_KEMBALI
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        mov rdi, Compiler_AST_INSTR_SIZE
+        mov rsi, Compiler_AST_INSTRUCTION
+        call Compiler_parser_alloc_node
+
+        mov rbx, rax
+        add rbx, 32
+        mov rcx, 3  ; 3 = ret marker
+        mov [rbx], rcx
+
+        pop r12
+        ret
+    tutup_jika
+
+    ; Unknown token - skip
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    mov rax, 0
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; IF PARSING
+; ============================================================================
+
+fungsi parser_parse_if
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstIf ptr)
+    ; [AI_HINT: Parse jika_* ... lainnya ... tutup_jika block]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+
+    ; Allocate if node
+    mov rdi, Compiler_AST_IF_SIZE
+    mov rsi, Compiler_AST_IF
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Store condition (we use the token's raw value for now)
+    ; The condition type is embedded in jika_* variant
+    mov rdi, r12
+    call Compiler_parser_peek_value_ptr
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], rax
+
+    ; Skip jika_* token
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; r14 = ptr to then_body for appending
+    mov r14, r13
+    add r14, 32
+
+    ; Parse then body until tutup_jika or lainnya
+    loop parse_then_body
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_TUTUP_JIKA
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            lompat if_done
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_LAINNYA
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            lompat parse_else
+        tutup_jika
+
+        ; Parse statement
+        mov rdi, r12
+        call Compiler_parser_parse_statement
+        cmp rax, 0
+        jika_sama
+            lanjut
+        tutup_jika
+
+        mov rdi, r14
+        mov rsi, rax
+        call Compiler_parser_append_child
+    tutup_loop
+
+    lompat if_done
+
+    parse_else:
+    ; r14 = ptr to else_body for appending
+    mov r14, r13
+    add r14, 40
+
+    loop parse_else_body
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_TUTUP_JIKA
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            henti
+        tutup_jika
+
+        mov rdi, r12
+        call Compiler_parser_parse_statement
+        cmp rax, 0
+        jika_sama
+            lanjut
+        tutup_jika
+
+        mov rdi, r14
+        mov rsi, rax
+        call Compiler_parser_append_child
+    tutup_loop
+
+    if_done:
+    mov rax, r13
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; LOOP PARSING
+; ============================================================================
+
+fungsi parser_parse_loop
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstLoop ptr)
+    ; [AI_HINT: Parse loop ... tutup_loop block]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+
+    ; Allocate loop node
+    mov rdi, Compiler_AST_LOOP_SIZE
+    mov rsi, Compiler_AST_LOOP
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Skip 'loop' token
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Skip optional loop name (identifier after loop)
+    mov rdi, r12
+    call Compiler_parser_peek_type
+    cmp rax, Compiler_TOKEN_IDENTIFIER
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+    tutup_jika
+
+    ; r14 = ptr to body for appending
+    mov r14, r13
+    add r14, 24
+
+    ; Parse body until tutup_loop
+    loop parse_loop_body
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_TUTUP_LOOP
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            henti
+        tutup_jika
+
+        mov rdi, r12
+        call Compiler_parser_parse_statement
+        cmp rax, 0
+        jika_sama
+            lanjut
+        tutup_jika
+
+        mov rdi, r14
+        mov rsi, rax
+        call Compiler_parser_append_child
+    tutup_loop
+
+    mov rax, r13
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; TOP-LEVEL PARSING
+; ============================================================================
+
+fungsi parser_parse_toplevel
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AST node ptr, or 0)
+    ; [AI_HINT: Parse top-level declaration (const, fungsi, struktur, dll)]
+
+    push r12
+    mov r12, rdi
+
+    call Compiler_parser_peek_type
+    mov rsi, rax
+
+    ; fungsi?
+    cmp rsi, Compiler_TOKEN_FUNGSI
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_parse_function
+        pop r12
+        ret
+    tutup_jika
+
+    ; const?
+    cmp rsi, Compiler_TOKEN_CONST
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Allocate const node
+        mov rdi, Compiler_AST_CONST_SIZE
+        mov rsi, Compiler_AST_CONST
+        call Compiler_parser_alloc_node
+        push rax
+
+        ; Get name
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 24
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 32
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Get value
+        mov rdi, r12
+        call Compiler_parser_peek_value_num
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 40
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        pop rax
+        pop r12
+        ret
+    tutup_jika
+
+    ; data?
+    cmp rsi, Compiler_TOKEN_DATA
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Allocate data node
+        mov rdi, Compiler_AST_DATA_SIZE
+        mov rsi, Compiler_AST_DATA
+        call Compiler_parser_alloc_node
+        push rax
+
+        ; Get string
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 24
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 32
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        pop rax
+        pop r12
+        ret
+    tutup_jika
+
+    ; struktur?
+    cmp rsi, Compiler_TOKEN_STRUKTUR
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_parse_struktur
+        pop r12
+        ret
+    tutup_jika
+
+    ; Ambil (import)?
+    cmp rsi, Compiler_TOKEN_AMBIL
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        ; Allocate import node
+        mov rdi, Compiler_AST_IMPORT_SIZE
+        mov rsi, Compiler_AST_IMPORT
+        call Compiler_parser_alloc_node
+        push rax
+
+        ; Get filename
+        mov rdi, r12
+        call Compiler_parser_peek_value_ptr
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 24
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_peek_value_len
+        pop rbx
+        push rbx
+        mov rcx, rbx
+        add rcx, 32
+        mov [rcx], rax
+
+        mov rdi, r12
+        call Compiler_parser_advance
+
+        pop rax
+        pop r12
+        ret
+    tutup_jika
+
+    ; Label at top level?
+    cmp rsi, Compiler_TOKEN_IDENTIFIER
+    jika_sama
+        mov rdi, r12
+        call Compiler_parser_parse_statement
+        pop r12
+        ret
+    tutup_jika
+
+    ; Unknown - skip
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    mov rax, 0
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; STRUKTUR PARSING
+; ============================================================================
+
+fungsi parser_parse_struktur
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (AstStruktur ptr)
+    ; [AI_HINT: Parse struktur ... tutup_struktur block]
+
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi
+
+    ; Skip 'struktur' token
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; Allocate struktur node
+    mov rdi, Compiler_AST_STRUKTUR_SIZE
+    mov rsi, Compiler_AST_STRUKTUR
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Get struct name
+    mov rdi, r12
+    call Compiler_parser_peek_value_ptr
+    mov rbx, r13
+    add rbx, 24
+    mov [rbx], rax
+
+    mov rdi, r12
+    call Compiler_parser_peek_value_len
+    mov rbx, r13
+    add rbx, 32
+    mov [rbx], rax
+
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; r14 = ptr to props field
+    mov r14, r13
+    add r14, 40
+
+    ; r15 = current offset
+    mov r15, 0
+
+    ; Parse props until tutup_struktur
+    loop parse_props
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_TUTUP_STRUKTUR
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+            henti
+        tutup_jika
+
+        cmp rax, Compiler_TOKEN_PROP
+        jika_sama
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            ; Allocate prop node
+            mov rdi, Compiler_AST_PROP_SIZE
+            mov rsi, Compiler_AST_PROP
+            call Compiler_parser_alloc_node
+            push rax
+
+            ; Get prop name
+            mov rdi, r12
+            call Compiler_parser_peek_value_ptr
+            pop rbx
+            push rbx
+            mov rcx, rbx
+            add rcx, 24
+            mov [rcx], rax
+
+            mov rdi, r12
+            call Compiler_parser_peek_value_len
+            pop rbx
+            push rbx
+            mov rcx, rbx
+            add rcx, 32
+            mov [rcx], rax
+
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            ; Get prop size
+            mov rdi, r12
+            call Compiler_parser_peek_value_num
+            mov r8, rax ; r8 = prop size
+            pop rbx
+            push rbx
+            mov rcx, rbx
+            add rcx, 40
+            mov [rcx], rax
+
+            ; Set offset
+            mov rcx, rbx
+            add rcx, 48
+            mov [rcx], r15
+
+            ; Update offset
+            add r15, r8
+
+            mov rdi, r12
+            call Compiler_parser_advance
+
+            ; Append prop
+            pop rsi
+            mov rdi, r14
+            call Compiler_parser_append_child
+
+            lanjut
+        tutup_jika
+
+        ; Skip unknown tokens in struct
+        mov rdi, r12
+        call Compiler_parser_advance
+    tutup_loop
+
+    ; Store total size
+    mov rbx, r13
+    add rbx, 48
+    mov [rbx], r15
+
+    mov rax, r13
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; MAIN PARSE FUNCTION
+; ============================================================================
+
+fungsi parser_parse
+    ; Input: rdi (Parser ptr)
+    ; Output: rax (root AST node - Unit)
+    ; [AI_HINT: Parse seluruh file menjadi AST]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+
+    ; Allocate Unit node as root
+    mov rdi, Compiler_AST_NODE_SIZE
+    mov rsi, Compiler_AST_UNIT
+    call Compiler_parser_alloc_node
+    mov r13, rax
+
+    ; Store as root
+    mov rbx, r12
+    add rbx, 16
+    mov [rbx], r13
+
+    ; Get first token
+    mov rdi, r12
+    call Compiler_parser_advance
+
+    ; r14 = pointer for appending children to unit
+    ; We use the 'next' field of unit to link top-level decls
+    mov r14, r13
+    add r14, 8
+
+    ; Parse all top-level declarations
+    loop parse_all
+        mov rdi, r12
+        call Compiler_parser_peek_type
+
+        cmp rax, Compiler_TOKEN_EOF
+        jika_sama
+            henti
+        tutup_jika
+
+        mov rdi, r12
+        call Compiler_parser_parse_toplevel
+
+        cmp rax, 0
+        jika_sama
+            lanjut
+        tutup_jika
+
+        ; Append to unit
+        mov rdi, r14
+        mov rsi, rax
+        call Compiler_parser_append_child
+    tutup_loop
+
+    mov rax, r13
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi

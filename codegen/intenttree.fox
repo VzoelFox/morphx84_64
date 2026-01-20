@@ -1,0 +1,326 @@
+; ============================================================================
+; INTENTTREE BUILDER - Runtime IntentTree Structure Generator
+; ============================================================================
+; [AI_HINT: Build IntentTree runtime structure dari AST]
+;
+; IntentTree adalah struktur runtime yang mengorganisir code dalam hierarki:
+; Unit → Shard → Fragment
+;
+; Struktur sama dengan morphlib/morphroutine.fox:
+;   Unit: namespace/module
+;   Shard: organizational grouping
+;   Fragment: executable code pointer
+
+; ============================================================================
+; INTENTTREE STRUCTURES (from morphlib/morphroutine.fox)
+; ============================================================================
+
+; Unit Structure (32 bytes)
+; [0-7]   UnitID (8 bytes)
+; [8-15]  FirstShard ptr (8 bytes)
+; [16-23] Status (8 bytes)
+; [24-31] Reserved (8 bytes)
+
+; Shard Structure (32 bytes)
+; [0-7]   ShardID (8 bytes)
+; [8-15]  NextShard ptr (8 bytes)
+; [16-23] FirstFragment ptr (8 bytes)
+; [24-31] Status (8 bytes)
+
+; Fragment Structure (32 bytes)
+; [0-7]   FuncPtr (8 bytes) - Pointer to machine code
+; [8-15]  NextFragment ptr (8 bytes)
+; [16-23] Status (8 bytes)
+; [24-31] Context ptr (8 bytes)
+
+const INTENTTREE_UNIT_SIZE 32
+const INTENTTREE_SHARD_SIZE 32
+const INTENTTREE_FRAGMENT_SIZE 32
+
+const INTENTTREE_STATUS_INACTIVE 0
+const INTENTTREE_STATUS_ACTIVE 1
+const INTENTTREE_STATUS_ERROR 2
+
+; ============================================================================
+; BUILD INTENTTREE FROM AST
+; ============================================================================
+
+fungsi intenttree_build
+    ; Input: rdi (AST root - Unit node)
+    ; Output: rax (IntentTree Unit ptr)
+    ; [AI_HINT: Build complete IntentTree dari AST]
+
+    push r12
+    push r13
+    mov r12, rdi ; AST root
+
+    ; 1. Create Unit
+    mov rdi, r12
+    call Codegen_intenttree_create_unit
+    mov r13, rax ; Unit ptr
+
+    ; 2. Create Shards (from AST children)
+    mov rdi, r13
+    mov rsi, r12
+    call Codegen_intenttree_create_shards
+
+    mov rax, r13
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CREATE UNIT NODE
+; ============================================================================
+
+fungsi intenttree_create_unit
+    ; Input: rdi (AST Unit node)
+    ; Output: rax (IntentTree Unit ptr)
+    ; [AI_HINT: Allocate dan init Unit structure]
+
+    push r12
+    mov r12, rdi ; AST node
+
+    ; Allocate Unit
+    mov rdi, Codegen_INTENTTREE_UNIT_SIZE
+    call MorphLib_mem_alloc
+    push rax ; unit ptr
+
+    ; UnitID = hash of unit name (for now, use 0)
+    mov rdx, 0
+    mov [rax], rdx
+
+    ; FirstShard = 0 (will be set later)
+    add rax, 8
+    mov [rax], rdx
+
+    ; Status = ACTIVE
+    add rax, 8
+    mov rdx, Codegen_INTENTTREE_STATUS_ACTIVE
+    mov [rax], rdx
+
+    ; Reserved = 0
+    add rax, 8
+    mov rdx, 0
+    mov [rax], rdx
+
+    pop rax
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CREATE SHARDS
+; ============================================================================
+
+fungsi intenttree_create_shards
+    ; Input: rdi (IntentTree Unit ptr), rsi (AST Unit node)
+    ; [AI_HINT: Create Shards dari AST children]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; Unit ptr
+    mov r13, rsi ; AST node
+
+    ; Get first child (should be AST_SHARD or AST_FUNCTION)
+    mov rbx, r13
+    add rbx, 8
+    mov r14, [rbx] ; first child
+
+    ; For each child, create Shard
+    mov rdi, r12
+    mov rsi, r14
+    call Codegen_intenttree_create_shard_from_ast
+
+    ; Link first shard to Unit
+    mov rbx, r12
+    add rbx, 8
+    mov [rbx], rax ; Unit->FirstShard
+
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CREATE SHARD FROM AST
+; ============================================================================
+
+fungsi intenttree_create_shard_from_ast
+    ; Input: rdi (IntentTree Unit ptr), rsi (AST node)
+    ; Output: rax (Shard ptr)
+    ; [AI_HINT: Create Shard dari AST node]
+
+    push r12
+    push r13
+    mov r12, rdi ; Unit ptr
+    mov r13, rsi ; AST node
+
+    cmp r13, 0
+    jika_sama
+        mov rax, 0
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    ; Allocate Shard
+    mov rdi, Codegen_INTENTTREE_SHARD_SIZE
+    call MorphLib_mem_alloc
+    push rax ; shard ptr
+
+    ; ShardID = 0
+    mov rdx, 0
+    mov [rax], rdx
+
+    ; NextShard = 0
+    add rax, 8
+    mov [rax], rdx
+
+    ; FirstFragment = 0 (will be set by create_fragments)
+    add rax, 8
+    mov [rax], rdx
+
+    ; Status = ACTIVE
+    add rax, 8
+    mov rdx, Codegen_INTENTTREE_STATUS_ACTIVE
+    mov [rax], rdx
+
+    pop rax
+
+    ; Create Fragments
+    push rax
+    mov rdi, rax ; shard ptr
+    mov rsi, r13 ; AST node
+    call Codegen_intenttree_create_fragments
+    pop rax
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CREATE FRAGMENTS
+; ============================================================================
+
+fungsi intenttree_create_fragments
+    ; Input: rdi (Shard ptr), rsi (AST node)
+    ; [AI_HINT: Create Fragments dari AST functions]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; Shard ptr
+    mov r13, rsi ; AST node
+
+    ; Get node type
+    mov r14, [r13]
+
+    ; If AST_FUNCTION, create Fragment
+    cmp r14, Compiler_AST_FUNCTION
+    jika_sama
+        mov rdi, r13
+        call Codegen_intenttree_create_fragment
+
+        ; Link to Shard
+        mov rbx, r12
+        add rbx, 16
+        mov [rbx], rax ; Shard->FirstFragment
+
+        lompat fragments_done
+    tutup_jika
+
+    ; TODO: Handle other node types
+    ; If node has children, recurse
+
+    fragments_done:
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; CREATE FRAGMENT
+; ============================================================================
+
+fungsi intenttree_create_fragment
+    ; Input: rdi (AST Function node)
+    ; Output: rax (Fragment ptr)
+    ; [AI_HINT: Create Fragment dari function node]
+
+    push r12
+    mov r12, rdi ; AST Function
+
+    ; Allocate Fragment
+    mov rdi, Codegen_INTENTTREE_FRAGMENT_SIZE
+    call MorphLib_mem_alloc
+    push rax
+
+    ; FuncPtr = pointer to generated code
+    ; TODO: Get actual code address from symbol table
+    ; For now, use 0
+    mov rdx, 0
+    mov [rax], rdx
+
+    ; NextFragment = 0
+    add rax, 8
+    mov [rax], rdx
+
+    ; Status = ACTIVE
+    add rax, 8
+    mov rdx, Codegen_INTENTTREE_STATUS_ACTIVE
+    mov [rax], rdx
+
+    ; Context = 0
+    add rax, 8
+    mov rdx, 0
+    mov [rax], rdx
+
+    pop rax
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; HELPER: HASH STRING TO ID
+; ============================================================================
+
+fungsi intenttree_hash_string
+    ; Input: rdi (string ptr), rsi (length)
+    ; Output: rax (hash value)
+    ; [AI_HINT: Simple hash function untuk generate IDs]
+
+    push r12
+    push r13
+    mov r12, rdi ; string
+    mov r13, rsi ; length
+
+    mov rax, 5381 ; DJB2 hash init
+
+    loop hash_loop
+        cmp r13, 0
+        jika_sama
+            henti
+        tutup_jika
+
+        movzx rbx, [r12]
+
+        ; hash = hash * 33 + char
+        mov rcx, rax
+        shl rax, 5
+        add rax, rcx
+        add rax, rbx
+
+        inc r12
+        dec r13
+    tutup_loop
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi

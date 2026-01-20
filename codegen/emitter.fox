@@ -1,0 +1,274 @@
+; ============================================================================
+; MACHINE CODE EMITTER - x86-64 Instruction Encoding
+; ============================================================================
+; [AI_HINT: Encode AST instructions menjadi x86-64 machine code]
+;
+; Emitter bertanggung jawab untuk:
+; 1. Lookup instruction dari Brainlib ISA
+; 2. Encode REX prefix
+; 3. Encode ModR/M byte
+; 4. Encode immediate/displacement values
+; 5. Write bytes ke output buffer
+
+; ============================================================================
+; CONSTANTS - Register Encoding
+; ============================================================================
+
+const REG_RAX 0
+const REG_RCX 1
+const REG_RDX 2
+const REG_RBX 3
+const REG_RSP 4
+const REG_RBP 5
+const REG_RSI 6
+const REG_RDI 7
+const REG_R8 8
+const REG_R9 9
+const REG_R10 10
+const REG_R11 11
+const REG_R12 12
+const REG_R13 13
+const REG_R14 14
+const REG_R15 15
+
+; REX prefix bits
+const REX_W 0x48  ; 64-bit operand
+const REX_R 0x44  ; Extension of ModR/M reg field
+const REX_X 0x42  ; Extension of SIB index field
+const REX_B 0x41  ; Extension of ModR/M r/m field
+
+; ============================================================================
+; EMITTER STATE
+; ============================================================================
+
+const Emitter_SIZE 40
+
+struktur Emitter
+    prop output_buffer 8    ; Pointer to output buffer
+    prop output_pos 8       ; Current position in buffer
+    prop output_size 8      ; Total buffer size
+    prop symbol_table 8     ; Symbol table ptr
+    prop current_offset 8   ; Current code offset
+tutup_struktur
+
+; ============================================================================
+; EMITTER INITIALIZATION
+; ============================================================================
+
+fungsi emitter_new
+    ; Input: rdi (output buffer size)
+    ; Output: rax (Emitter ptr)
+    ; [AI_HINT: Create new emitter instance]
+
+    push r12
+    mov r12, rdi ; buffer size
+
+    ; Allocate Emitter struct
+    mov rdi, Codegen_Emitter_SIZE
+    call MorphLib_mem_alloc
+    push rax ; emitter ptr
+
+    ; Allocate output buffer
+    mov rdi, r12
+    call MorphLib_mem_alloc
+
+    pop rbx ; emitter ptr
+    push rbx
+
+    ; Set buffer ptr
+    mov [rbx], rax
+
+    ; Set output_pos = 0
+    add rbx, 8
+    mov rcx, 0
+    mov [rbx], rcx
+
+    ; Set output_size
+    add rbx, 8
+    mov [rbx], r12
+
+    ; symbol_table = 0 (for now)
+    add rbx, 8
+    mov [rbx], rcx
+
+    ; current_offset = 0
+    add rbx, 8
+    mov [rbx], rcx
+
+    pop rax
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; EMIT INSTRUCTION FROM AST
+; ============================================================================
+
+fungsi emitter_emit_instruction
+    ; Input: rdi (Emitter ptr), rsi (AstInstruction ptr)
+    ; Output: rax (bytes written)
+    ; [AI_HINT: Emit satu instruction dari AST node]
+
+    push r12
+    push r13
+    push r14
+    mov r12, rdi ; emitter
+    mov r13, rsi ; instruction node
+
+    ; Get mnemonic
+    mov rbx, r13
+    add rbx, 24
+    mov r14, [rbx] ; mnemonic_ptr
+
+    ; TODO: Lookup ISA dan encode instruction
+    ; For now, return 0
+    mov rax, 0
+
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; WRITE BYTES TO OUTPUT
+; ============================================================================
+
+fungsi emitter_write_byte
+    ; Input: rdi (Emitter ptr), rsi (byte value)
+    ; [AI_HINT: Write single byte ke output buffer]
+
+    push r12
+    mov r12, rdi
+
+    ; Get output buffer
+    mov rax, [r12]
+
+    ; Get current pos
+    mov rbx, r12
+    add rbx, 8
+    mov rcx, [rbx]
+
+    ; Write byte
+    add rax, rcx
+    mov [rax], sil
+
+    ; Increment pos
+    inc rcx
+    mov [rbx], rcx
+
+    ; Increment current_offset
+    mov rbx, r12
+    add rbx, 32
+    mov rax, [rbx]
+    inc rax
+    mov [rbx], rax
+
+    pop r12
+    ret
+tutup_fungsi
+
+fungsi emitter_write_dword
+    ; Input: rdi (Emitter ptr), rsi (dword value)
+    ; [AI_HINT: Write 4 bytes (little-endian)]
+
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13, rsi
+
+    ; Write byte 0
+    mov rdi, r12
+    mov rsi, r13
+    and rsi, 0xFF
+    call Codegen_emitter_write_byte
+
+    ; Write byte 1
+    mov rdi, r12
+    mov rsi, r13
+    shr rsi, 8
+    and rsi, 0xFF
+    call Codegen_emitter_write_byte
+
+    ; Write byte 2
+    mov rdi, r12
+    mov rsi, r13
+    shr rsi, 16
+    and rsi, 0xFF
+    call Codegen_emitter_write_byte
+
+    ; Write byte 3
+    mov rdi, r12
+    mov rsi, r13
+    shr rsi, 24
+    and rsi, 0xFF
+    call Codegen_emitter_write_byte
+
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; REGISTER NAME TO ID CONVERSION
+; ============================================================================
+
+fungsi emitter_reg_to_id
+    ; Input: rdi (register name string ptr), rsi (length)
+    ; Output: rax (register ID, or -1 if invalid)
+    ; [AI_HINT: Convert "rax" -> 0, "rbx" -> 3, etc]
+
+    ; TODO: Implement register name parsing
+    ; For now, return -1
+    mov rax, -1
+    ret
+tutup_fungsi
+
+; ============================================================================
+; ENCODE REX PREFIX
+; ============================================================================
+
+fungsi emitter_encode_rex
+    ; Input: rdi (Emitter ptr), rsi (flags: W|R|X|B)
+    ; [AI_HINT: Emit REX prefix byte]
+
+    push r12
+    mov r12, rdi
+
+    ; REX base = 0x40
+    mov rax, 0x40
+    or rax, rsi
+
+    ; Write REX byte
+    mov rdi, r12
+    mov rsi, rax
+    call Codegen_emitter_write_byte
+
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; ENCODE MODR/M BYTE
+; ============================================================================
+
+fungsi emitter_encode_modrm
+    ; Input: rdi (Emitter ptr), rsi (mod), rdx (reg), rcx (rm)
+    ; [AI_HINT: Emit ModR/M byte: [mod:2][reg:3][rm:3]]
+
+    push r12
+    mov r12, rdi
+
+    ; ModR/M = (mod << 6) | (reg << 3) | rm
+    shl rsi, 6
+    shl rdx, 3
+    or rsi, rdx
+    or rsi, rcx
+
+    ; Write ModR/M byte
+    mov rdi, r12
+    call Codegen_emitter_write_byte
+
+    pop r12
+    ret
+tutup_fungsi

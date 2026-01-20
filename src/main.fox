@@ -1,56 +1,132 @@
 L_FILENAME:
   data "tests/hello.fox\0"
 
-fungsi Start
-    ; Print Banner
-    mov rax, 0x0A312E307620786F ; "ox v0.1\n"
-    push rax
-    mov rax, 0x462072656C69706D ; "mpiler F"
-    push rax
-    mov rax, 0x6F43 ; "Co"
-    push rax
+MSG_BANNER:
+  data "Morph Self-Host Compiler v0.1\n\0"
 
-    mov rdi, 1
-    mov rsi, rsp
-    mov rdx, 18
+MSG_LEXER_OK:
+  data "[OK] Lexer initialized\n\0"
+
+MSG_PARSER_OK:
+  data "[OK] Parser initialized\n\0"
+
+MSG_PARSING:
+  data "[*] Parsing file...\n\0"
+
+MSG_PARSE_DONE:
+  data "[OK] Parse complete!\n\0"
+
+MSG_AST_ROOT:
+  data "[AST] Root node type: \0"
+
+MSG_ERROR:
+  data "[ERROR] Failed to open file\n\0"
+
+fungsi print_string
+    ; Input: rdi (null-terminated string ptr)
+    ; [AI_HINT: Print string sampai null terminator]
+
+    push r12
+    push r13
+    mov r12, rdi ; string ptr
+
+    ; Calculate length
+    mov r13, 0 ; length counter
+    loop strlen_loop
+        mov rax, r12
+        add rax, r13
+        movzx rbx, [rax]
+        cmp rbx, 0
+        jika_sama
+            henti
+        tutup_jika
+        inc r13
+    tutup_loop
+
+    ; Print
+    mov rdi, 1 ; stdout
+    mov rsi, r12
+    mov rdx, r13
     call MorphLib_sys_write
 
-    add rsp, 24 ; Cleanup stack
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
 
-    ; Init Lexer
+fungsi Start
+    ; Print Banner
+    mov rdi, Compiler_MSG_BANNER
+    call Compiler_print_string
+
+    ; 1. Init Lexer
     mov rdi, Compiler_L_FILENAME
     call Compiler_lexer_new
 
     cmp rax, 0
     jika_sama
         ; Error opening file
-        mov rax, 0x0A4C494146 ; "FAIL\n"
-        push rax
+        mov rdi, Compiler_MSG_ERROR
+        call Compiler_print_string
         mov rdi, 1
-        mov rsi, rsp
-        mov rdx, 5
-        call MorphLib_sys_write
-        pop rax
-        ret
+        call MorphLib_sys_exit
     tutup_jika
 
     mov r12, rax ; Lexer Ptr
 
-    ; Loop Tokens
-    loop token_loop
-        mov rdi, r12
-        call Compiler_lexer_next_token
+    mov rdi, Compiler_MSG_LEXER_OK
+    call Compiler_print_string
 
-        cmp rax, Compiler_TOKEN_EOF
-        jika_sama
-             henti
-        tutup_jika
+    ; 2. Init Parser
+    mov rdi, r12
+    call Compiler_parser_new
+    mov r13, rax ; Parser Ptr
 
-        ; Print Token Type (Int)
-        mov rdi, rax
-        call MorphLib_print_decimal
-        call MorphLib_print_newline
-    tutup_loop
+    mov rdi, Compiler_MSG_PARSER_OK
+    call Compiler_print_string
 
-    ret
+    ; 3. Parse File
+    mov rdi, Compiler_MSG_PARSING
+    call Compiler_print_string
+
+    mov rdi, r13
+    call Compiler_parser_parse
+    mov r14, rax ; AST Root
+
+    mov rdi, Compiler_MSG_PARSE_DONE
+    call Compiler_print_string
+
+    ; 4. Print AST Root Info
+    mov rdi, Compiler_MSG_AST_ROOT
+    call Compiler_print_string
+
+    ; Print root node type
+    mov rdi, [r14] ; node type
+    call MorphLib_print_decimal
+    call MorphLib_print_newline
+
+    ; Check error flag
+    mov rbx, r13
+    add rbx, 40
+    mov rax, [rbx]
+    cmp rax, 0
+    jika_beda
+        ; Parser error occurred
+        mov rax, 0x0A52524520 ; " ERR\n"
+        push rax
+        mov rax, 0x5245535241 ; "ARSER"
+        push rax
+        mov rax, 0x50 ; "P"
+        push rax
+
+        mov rdi, 1
+        mov rsi, rsp
+        mov rdx, 13
+        call MorphLib_sys_write
+        add rsp, 24
+    tutup_jika
+
+    ; Exit
+    mov rdi, 0
+    call MorphLib_sys_exit
 tutup_fungsi

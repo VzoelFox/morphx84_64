@@ -1,0 +1,150 @@
+; ============================================================================
+; TRICKSTER PASS - AST Optimization & Lowering
+; ============================================================================
+; [AI_HINT: Optimize dan lower AST sebelum code generation]
+;
+; Trickster Pass melakukan optimization passes pada AST:
+; 1. Constant Folding
+; 2. Dead Code Elimination
+; 3. Instruction Lowering
+; 4. Label Resolution Preparation
+
+; ============================================================================
+; CONSTANTS
+; ============================================================================
+
+const TRICKSTER_MAX_PASSES 3
+
+; ============================================================================
+; MAIN ENTRY POINT
+; ============================================================================
+
+fungsi trickster_optimize
+    ; Input: rdi (AST root - Unit node)
+    ; Output: rax (optimized AST root)
+    ; [AI_HINT: Main entry untuk optimization passes]
+
+    push r12
+    mov r12, rdi ; AST root
+
+    ; Pass 1: Constant Folding
+    mov rdi, r12
+    call Codegen_trickster_fold_constants
+    mov r12, rax
+
+    ; Pass 2: Dead Code Elimination
+    mov rdi, r12
+    call Codegen_trickster_eliminate_dead_code
+    mov r12, rax
+
+    ; Pass 3: Instruction Lowering
+    mov rdi, r12
+    call Codegen_trickster_lower_instructions
+    mov r12, rax
+
+    mov rax, r12
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; PASS 1: CONSTANT FOLDING
+; ============================================================================
+
+fungsi trickster_fold_constants
+    ; Input: rdi (AST root)
+    ; Output: rax (AST root, modified)
+    ; [AI_HINT: Fold constant expressions]
+    ;
+    ; Example:
+    ;   mov rax, 10
+    ;   add rax, 5
+    ; → mov rax, 15
+
+    ; TODO: Implement constant folding
+    ; For now, just return input
+    mov rax, rdi
+    ret
+tutup_fungsi
+
+; ============================================================================
+; PASS 2: DEAD CODE ELIMINATION
+; ============================================================================
+
+fungsi trickster_eliminate_dead_code
+    ; Input: rdi (AST root)
+    ; Output: rax (AST root, modified)
+    ; [AI_HINT: Remove unreachable code]
+    ;
+    ; Example:
+    ;   ret
+    ;   mov rax, 10  ; unreachable
+    ; → ret
+
+    ; TODO: Implement DCE
+    mov rax, rdi
+    ret
+tutup_fungsi
+
+; ============================================================================
+; PASS 3: INSTRUCTION LOWERING
+; ============================================================================
+
+fungsi trickster_lower_instructions
+    ; Input: rdi (AST root)
+    ; Output: rax (AST root, modified)
+    ; [AI_HINT: Lower pseudo-instructions ke native x86-64]
+    ;
+    ; Example:
+    ;   push_all
+    ; → push r12
+    ;   push r13
+    ;   ...
+
+    ; TODO: Implement lowering
+    mov rax, rdi
+    ret
+tutup_fungsi
+
+; ============================================================================
+; HELPER: TRAVERSE AST
+; ============================================================================
+
+fungsi trickster_traverse
+    ; Input: rdi (AST node), rsi (visitor function ptr)
+    ; Output: rax (modified node)
+    ; [AI_HINT: Traverse AST dan apply visitor function]
+
+    push r12
+    push r13
+    mov r12, rdi ; current node
+    mov r13, rsi ; visitor
+
+    ; Get node type
+    mov rax, [r12]
+
+    ; Visit current node
+    mov rdi, r12
+    call r13
+    mov r12, rax
+
+    ; Traverse children (next sibling)
+    mov rbx, r12
+    add rbx, 8
+    mov rdi, [rbx] ; next
+    cmp rdi, 0
+    jika_sama
+        mov rax, r12
+        pop r13
+        pop r12
+        ret
+    tutup_jika
+
+    mov rsi, r13
+    call Codegen_trickster_traverse
+
+    mov rax, r12
+    pop r13
+    pop r12
+    ret
+tutup_fungsi

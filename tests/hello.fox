@@ -1,2 +1,13 @@
-Unit: Hello
+; Simple test file untuk parser
 fungsi main
+    mov rax, 60
+    mov rdi, 0
+    syscall
+tutup_fungsi
+
+fungsi hello
+    mov rax, 1
+    ret
+tutup_fungsi
+
+const TEST_VALUE 42

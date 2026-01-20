@@ -4,6 +4,7 @@ Ambil aritmatika.fox
 Ambil logika.fox
 Ambil sys.fox
 Ambil alloc.fox
+; Ambil signal.fox  ; FROZEN - Enable setelah self-host parser
 Ambil snapshot.fox
 Ambil daemon.fox
 Ambil morphroutine.fox

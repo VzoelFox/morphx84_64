@@ -4,4 +4,6 @@ Shard: Init
 Fragment: Start -> Ambil main.fox
 
 Ambil token.fox
+Ambil keywords.fox
 Ambil lexer.fox
+Ambil parser.fox
