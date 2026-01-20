@@ -1,0 +1,23 @@
+# Morph Language Files
+*.elsa linguist-language=Morph
+*.fox linguist-language=Morph
+*.vzoel linguist-language=Morph
+*.fall linguist-language=Morph
+
+# Morph Source Code
+*.elsa linguist-detectable=true
+*.fox linguist-detectable=true
+*.vzoel linguist-detectable=true
+*.fall linguist-detectable=true
+
+# Generated Files (exclude from stats)
+*.morph linguist-generated=true
+*.tmp linguist-generated=true
+output.* linguist-generated=true
+
+# Documentation
+*.md linguist-documentation=true
+SELF_HOST_STATUS.md linguist-documentation=true
+
+# Vendored Dependencies (if any)
+vendor/* linguist-vendored=true

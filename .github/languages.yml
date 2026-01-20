@@ -1,0 +1,45 @@
+# Morph Language Definition for GitHub Linguist
+# To be submitted to: https://github.com/github/linguist
+#
+# This file defines the Morph programming language for GitHub's language
+# detection and syntax highlighting system.
+
+Morph:
+  type: programming
+  color: "#FF69B4"  # Hot Pink
+  extensions:
+    - ".elsa"       # ELSA - Enhanced Language Syntax Assembly
+    - ".fox"        # FOX - Functional Object eXtensions
+    - ".vzoel"      # VZOEL - VzoelFox Embedded Language
+    - ".fall"       # FALL - Functional Assembly Low Level
+  interpreters:
+    - morph
+  language_id: 987654321  # Temporary ID, will be assigned by Linguist maintainers
+  aliases:
+    - morph
+    - morphlang
+    - morph-lang
+  tm_scope: source.morph
+  ace_mode: assembly_x86
+  codemirror_mode: gas
+  codemirror_mime_type: text/x-gas
+
+  # Language characteristics
+  group: Assembly
+
+  # File patterns
+  filenames:
+    - "boot.fox"
+    - "tagger.fox"
+    - "bootstrap.fs"
+
+  # Documentation
+  description: >
+    Morph is a self-hosting, low-level programming language with Indonesian
+    syntax support. It combines assembly-like control with modern language
+    features including IntentTree runtime, self-compilation, and zero
+    external dependencies.
+
+  # Links
+  homepage: https://github.com/VzoelFox/morphx84_64
+  repository: https://github.com/VzoelFox/morphx84_64
