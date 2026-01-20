@@ -45,7 +45,7 @@ const INTENTTREE_STATUS_ERROR 2
 ; BUILD INTENTTREE FROM AST
 ; ============================================================================
 
-fungsi intenttree_build
+fungsi TreeBuilder
     ; Input: rdi (AST root - Unit node)
     ; Output: rax (IntentTree Unit ptr)
     ; [AI_HINT: Build complete IntentTree dari AST]

@@ -19,7 +19,7 @@ const TRICKSTER_MAX_PASSES 3
 ; MAIN ENTRY POINT
 ; ============================================================================
 
-fungsi trickster_optimize
+fungsi TricksterPass
     ; Input: rdi (AST root - Unit node)
     ; Output: rax (optimized AST root)
     ; [AI_HINT: Main entry untuk optimization passes]

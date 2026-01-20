@@ -5,7 +5,7 @@ Fragment: TricksterPass -> Ambil trickster.fox
 
 Shard: Generation
 Fragment: ArtifactGen -> Ambil artifact.fox
-Fragment: MachineEmit -> Ambil emitter.fox
+Ambil emitter.fox
 
 Shard: IntentTree
 Fragment: TreeBuilder -> Ambil intenttree.fox
