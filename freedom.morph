@@ -1,0 +1,59 @@
+#!/bin/bash
+# Freedom.morph - Morph Self-Host Compiler
+# Advanced compiler with Parser and AST support
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Banner
+echo "===================================="
+echo "  Freedom.morph Compiler v0.1      "
+echo "  Morph Self-Host with AST Parser  "
+echo "===================================="
+echo ""
+
+# Check arguments
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <input.fox> [output.morph]"
+    echo ""
+    echo "Examples:"
+    echo "  $0 hello.fox              # Compile to output.morph"
+    echo "  $0 hello.fox hello.morph  # Compile to hello.morph"
+    echo ""
+    exit 1
+fi
+
+INPUT_FILE="$1"
+OUTPUT_FILE="${2:-output.morph}"
+
+# Check if input exists
+if [[ ! -f "$INPUT_FILE" ]]; then
+    echo "[ERROR] Input file not found: $INPUT_FILE"
+    exit 1
+fi
+
+echo "[*] Compiling: $INPUT_FILE"
+echo "[*] Output: $OUTPUT_FILE"
+echo ""
+
+# Run compiler
+cd "$SCRIPT_DIR"
+bash core/parser.sh "$INPUT_FILE"
+
+# Check if compilation succeeded
+if [[ $? -eq 0 ]] && [[ -f "output.morph" ]]; then
+    # Move to desired output name if different
+    if [[ "$OUTPUT_FILE" != "output.morph" ]]; then
+        mv output.morph "$OUTPUT_FILE"
+    fi
+
+    echo ""
+    echo "[OK] Compilation successful!"
+    echo "[OK] Binary: $OUTPUT_FILE"
+    echo ""
+    echo "Run with: bash core/morph_run.sh $OUTPUT_FILE"
+    exit 0
+else
+    echo ""
+    echo "[ERROR] Compilation failed!"
+    exit 1
+fi
