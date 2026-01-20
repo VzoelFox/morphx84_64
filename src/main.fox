@@ -1,8 +1,8 @@
-L_FILENAME:
-  data "tests/hello.fox\0"
-
 MSG_BANNER:
   data "Morph Self-Host Compiler v0.1\n\0"
+
+MSG_USAGE:
+  data "Usage: compiler <input.fox> [output.morph]\n\0"
 
 MSG_LEXER_OK:
   data "[OK] Lexer initialized\n\0"
@@ -19,8 +19,20 @@ MSG_PARSE_DONE:
 MSG_AST_ROOT:
   data "[AST] Root node type: \0"
 
+MSG_CODEGEN_START:
+  data "[*] Generating code...\n\0"
+
+MSG_CODEGEN_DONE:
+  data "[OK] Code generation complete. Size: \0"
+
+MSG_WRITE_DONE:
+  data " bytes written to \0"
+
 MSG_ERROR:
   data "[ERROR] Failed to open file\n\0"
+
+MSG_DEFAULT_OUTPUT:
+  data "output.morph\0"
 
 fungsi print_string
     ; Input: rdi (null-terminated string ptr)
@@ -59,8 +71,37 @@ fungsi Start
     mov rdi, Compiler_MSG_BANNER
     call Compiler_print_string
 
+    ; Check Arguments
+    call MorphLib_sys_get_argc
+    cmp rax, 2
+    jika_kurang
+        mov rdi, Compiler_MSG_USAGE
+        call Compiler_print_string
+        mov rdi, 1
+        call MorphLib_sys_exit
+    tutup_jika
+
+    ; Get Input Filename (argv[1])
+    call MorphLib_sys_get_argv
+    mov rbx, rax
+    add rbx, 8 ; argv[1]
+    mov rax, [rbx] ; input filename
+    push rax ; Save input filename on stack
+
+    ; Get Output Filename (argv[2]) or default
+    call MorphLib_sys_get_argc
+    cmp rax, 3
+    jika_lebih_sama
+        call MorphLib_sys_get_argv
+        mov rbx, rax
+        add rbx, 16 ; argv[2]
+        mov r15, [rbx] ; output filename -> r15
+    lainnya
+        mov r15, Compiler_MSG_DEFAULT_OUTPUT
+    tutup_jika
+
     ; 1. Init Lexer
-    mov rdi, Compiler_L_FILENAME
+    pop rdi ; Restore input filename
     call Compiler_lexer_new
 
     cmp rax, 0
@@ -72,7 +113,7 @@ fungsi Start
         call MorphLib_sys_exit
     tutup_jika
 
-    mov r12, rax ; Lexer Ptr
+    mov r12, rax ; Lexer Ptr -> r12
 
     mov rdi, Compiler_MSG_LEXER_OK
     call Compiler_print_string
@@ -80,7 +121,7 @@ fungsi Start
     ; 2. Init Parser
     mov rdi, r12
     call Compiler_parser_new
-    mov r13, rax ; Parser Ptr
+    mov r13, rax ; Parser Ptr -> r13
 
     mov rdi, Compiler_MSG_PARSER_OK
     call Compiler_print_string
@@ -91,19 +132,10 @@ fungsi Start
 
     mov rdi, r13
     call Compiler_parser_parse
-    mov r14, rax ; AST Root
+    mov r14, rax ; AST Root -> r14
 
     mov rdi, Compiler_MSG_PARSE_DONE
     call Compiler_print_string
-
-    ; 4. Print AST Root Info
-    mov rdi, Compiler_MSG_AST_ROOT
-    call Compiler_print_string
-
-    ; Print root node type
-    mov rdi, [r14] ; node type
-    call MorphLib_print_decimal
-    call MorphLib_print_newline
 
     ; Check error flag
     mov rbx, r13
@@ -124,6 +156,61 @@ fungsi Start
         mov rdx, 13
         call MorphLib_sys_write
         add rsp, 24
+
+        mov rdi, 1
+        call MorphLib_sys_exit
+    tutup_jika
+
+    ; 4. Optimization (Trickster)
+    mov rdi, r14
+    call Codegen_TricksterPass
+    mov r14, rax
+
+    ; 5. Code Generation
+    mov rdi, Compiler_MSG_CODEGEN_START
+    call Compiler_print_string
+
+    mov rdi, r14
+    call Codegen_ArtifactGen
+    ; Returns: rax = buffer ptr, rdx = size
+    push rax ; save buffer
+    push rdx ; save size
+
+    mov rdi, Compiler_MSG_CODEGEN_DONE
+    call Compiler_print_string
+    mov rdi, rdx
+    call MorphLib_print_decimal
+    mov rdi, Compiler_MSG_WRITE_DONE
+    call Compiler_print_string
+    mov rdi, r15
+    call Compiler_print_string
+    call MorphLib_print_newline
+
+    ; 6. Write to File
+    ; Open file (O_WRONLY | O_CREAT | O_TRUNC = 0x01 | 0x40 | 0x200 = 577? Check sys.fox)
+    ; sys_open(filename, flags, mode)
+    mov rdi, r15
+    mov rsi, 577
+    mov rdx, 420 ; 0644
+    call MorphLib_sys_open
+
+    mov rdi, rax ; fd
+    pop rdx ; size
+    pop rsi ; buffer
+
+    cmp rdi, 0
+    jika_kurang
+        ; Error opening file
+        mov rdi, Compiler_MSG_ERROR
+        call Compiler_print_string
+    lainnya
+        ; Write
+        push rdi ; save fd
+        call MorphLib_sys_write
+
+        ; Close
+        pop rdi
+        call MorphLib_sys_close
     tutup_jika
 
     ; Exit

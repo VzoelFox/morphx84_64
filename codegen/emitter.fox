@@ -112,6 +112,7 @@ fungsi emitter_emit_instruction
     push r12
     push r13
     push r14
+    push r15
     mov r12, rdi ; emitter
     mov r13, rsi ; instruction node
 
@@ -119,12 +120,213 @@ fungsi emitter_emit_instruction
     mov rbx, r13
     add rbx, 24
     mov r14, [rbx] ; mnemonic_ptr
+    add rbx, 8
+    mov r15, [rbx] ; mnemonic_len
 
-    ; TODO: Lookup ISA dan encode instruction
-    ; For now, return 0
+    ; Get Operands
+    mov rbx, r13
+    add rbx, 40
+    mov r8, [rbx] ; op1
+    add rbx, 8
+    mov r9, [rbx] ; op2
+
+    ; Check mnemonic "mov"
+    cmp r15, 3
+    jika_sama
+        mov rdi, r14
+        movzx rax, [rdi]
+        cmp rax, 109 ; 'm'
+        jika_sama
+            ; It's mov
+            mov rdi, r12
+            mov rsi, r8
+            mov rdx, r9
+            call Codegen_emitter_emit_mov
+            lompat emit_done
+        tutup_jika
+
+        ; Check "ret"
+        cmp rax, 114 ; 'r'
+        jika_sama
+            ; It's ret
+            mov rdi, r12
+            mov rsi, 0xC3
+            call Codegen_emitter_write_byte
+            lompat emit_done
+        tutup_jika
+    tutup_jika
+
+    ; Check "syscall" (7 chars)
+    cmp r15, 7
+    jika_sama
+        ; Assume syscall
+        mov rdi, r12
+        mov rsi, 0x0F
+        call Codegen_emitter_write_byte
+        mov rdi, r12
+        mov rsi, 0x05
+        call Codegen_emitter_write_byte
+        lompat emit_done
+    tutup_jika
+
+    emit_done:
     mov rax, 0
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; EMIT MOV INSTRUCTION
+; ============================================================================
+
+fungsi emitter_emit_mov
+    ; Input: rdi (Emitter), rsi (op1), rdx (op2)
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+    mov r13, rsi ; op1
+    mov r14, rdx ; op2
+
+    ; Check op1 type
+    mov rbx, r13
+    add rbx, 24
+    mov rax, [rbx] ; op1.kind (1=REG, 2=IMM)
+
+    cmp rax, 1 ; REG
+    jika_sama
+        ; Dest is REG
+        ; Get dest reg ID
+        mov rbx, r13
+        add rbx, 32
+        mov rdi, [rbx] ; value_ptr
+        add rbx, 8
+        mov rsi, [rbx] ; value_len
+        call Codegen_emitter_reg_to_id
+        mov r8, rax ; dest reg id
+
+        ; Check op2
+        mov rbx, r14
+        add rbx, 24
+        mov rax, [rbx] ; op2.kind
+
+        cmp rax, 2 ; IMM
+        jika_sama
+            ; MOV REG, IMM (B8+reg)
+            ; REX.W
+            mov rdi, r12
+            mov rsi, 8 ; REX.W (64-bit operand)
+
+            ; Check REX.B (if dest reg >= 8)
+            cmp r8, 8
+            jika_lebih_sama
+                or rsi, 1 ; REX.B
+                sub r8, 8
+            tutup_jika
+            call Codegen_emitter_encode_rex
+
+            ; Opcode B8 + reg
+            mov rax, 0xB8
+            add rax, r8
+            mov rdi, r12
+            mov rsi, rax
+            call Codegen_emitter_write_byte
+
+            ; Immediate Value (64-bit)
+            mov rbx, r14
+            add rbx, 48
+            mov rax, [rbx] ; value_num
+            mov rdi, r12
+            mov rsi, rax
+            call Codegen_emitter_write_qword
+
+            pop r14
+            pop r13
+            pop r12
+            ret
+        tutup_jika
+
+        cmp rax, 1 ; REG
+        jika_sama
+            ; MOV REG, REG (89 /r)
+            ; Get src reg ID
+            mov rbx, r14
+            add rbx, 32
+            mov rdi, [rbx]
+            add rbx, 8
+            mov rsi, [rbx]
+            call Codegen_emitter_reg_to_id
+            mov r9, rax ; src reg id
+
+            ; REX.W
+            mov rdi, r12
+            mov rsi, 8 ; REX.W
+
+            ; REX.R (Src is reg in modrm)
+            cmp r9, 8
+            jika_lebih_sama
+                or rsi, 4 ; REX.R
+                sub r9, 8
+            tutup_jika
+
+            ; REX.B (Dest is rm in modrm)
+            cmp r8, 8
+            jika_lebih_sama
+                or rsi, 1 ; REX.B
+                sub r8, 8
+            tutup_jika
+
+            call Codegen_emitter_encode_rex
+
+            ; Opcode 89
+            mov rdi, r12
+            mov rsi, 0x89
+            call Codegen_emitter_write_byte
+
+            ; ModRM (11 src dest) -> (11 reg rm)
+            ; mod=3, reg=src(r9), rm=dest(r8)
+            mov rdi, r12
+            mov rsi, 3
+            mov rdx, r9
+            mov rcx, r8
+            call Codegen_emitter_encode_modrm
+
+            pop r14
+            pop r13
+            pop r12
+            ret
+        tutup_jika
+    tutup_jika
 
     pop r14
+    pop r13
+    pop r12
+    ret
+tutup_fungsi
+
+; ============================================================================
+; WRITE QWORD
+; ============================================================================
+
+fungsi emitter_write_qword
+    ; Input: rdi (Emitter), rsi (value)
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13, rsi
+
+    mov rdi, r12
+    mov rsi, r13
+    call Codegen_emitter_write_dword
+
+    mov rdi, r12
+    mov rsi, r13
+    shr rsi, 32
+    call Codegen_emitter_write_dword
+
     pop r13
     pop r12
     ret
@@ -151,7 +353,7 @@ fungsi emitter_write_byte
 
     ; Write byte
     add rax, rcx
-    mov [rax], sil
+    movb [rax], rsi
 
     ; Increment pos
     inc rcx
@@ -218,9 +420,107 @@ fungsi emitter_reg_to_id
     ; Output: rax (register ID, or -1 if invalid)
     ; [AI_HINT: Convert "rax" -> 0, "rbx" -> 3, etc]
 
-    ; TODO: Implement register name parsing
-    ; For now, return -1
+    push r12
+    mov r12, rdi ; str ptr
+
+    ; Check first char 'r'
+    movzx rax, [r12]
+    cmp rax, 114 ; 'r'
+    jika_beda
+        mov rax, -1
+        pop r12
+        ret
+    tutup_jika
+
+    ; Check second char
+    mov rbx, r12
+    inc rbx
+    movzx rax, [rbx]
+
+    cmp rax, 97 ; 'a'
+    jika_sama
+        mov rax, 0 ; rax
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 99 ; 'c'
+    jika_sama
+        mov rax, 1 ; rcx
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 100 ; 'd'
+    jika_sama
+        ; rdx or rdi?
+        inc rbx
+        movzx rax, [rbx]
+        cmp rax, 120 ; 'x'
+        jika_sama
+            mov rax, 2 ; rdx
+            pop r12
+            ret
+        tutup_jika
+        mov rax, 7 ; rdi
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 98 ; 'b'
+    jika_sama
+        ; rbx or rbp?
+        inc rbx
+        movzx rax, [rbx]
+        cmp rax, 120 ; 'x'
+        jika_sama
+            mov rax, 3 ; rbx
+            pop r12
+            ret
+        tutup_jika
+        mov rax, 5 ; rbp
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 115 ; 's'
+    jika_sama
+        ; rsp or rsi?
+        inc rbx
+        movzx rax, [rbx]
+        cmp rax, 112 ; 'p'
+        jika_sama
+            mov rax, 4 ; rsp
+            pop r12
+            ret
+        tutup_jika
+        mov rax, 6 ; rsi
+        pop r12
+        ret
+    tutup_jika
+
+    ; r8-r15
+    cmp rax, 56 ; '8'
+    jika_sama
+        mov rax, 8
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 57 ; '9'
+    jika_sama
+        mov rax, 9
+        pop r12
+        ret
+    tutup_jika
+    cmp rax, 49 ; '1'
+    jika_sama
+        ; 10-15
+        inc rbx
+        movzx rax, [rbx]
+        sub rax, 48
+        add rax, 10
+        pop r12
+        ret
+    tutup_jika
+
     mov rax, -1
+    pop r12
     ret
 tutup_fungsi
 

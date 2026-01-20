@@ -7,3 +7,4 @@ Ambil token.fox
 Ambil keywords.fox
 Ambil lexer.fox
 Ambil parser.fox
+Ambil ../codegen
