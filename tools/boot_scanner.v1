@@ -1,0 +1,164 @@
+; ... Headers ...
+7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
+02 00 3e 00 01 00 00 00
+78 00 40 00 00 00 00 00
+40 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 40 00 38 00
+01 00 40 00 00 00 00 00
+
+01 00 00 00 05 00 00 00
+00 00 00 00 00 00 00 00
+00 00 40 00 00 00 00 00
+00 00 40 00 00 00 00 00
+00 20 00 00 00 00 00 00
+00 20 00 00 00 00 00 00
+00 10 00 00 00 00 00 00
+
+; Code
+58
+48 83 F8 02
+7C @usage_error
+58
+5F
+49 89 FC
+
+; Open
+B8 02 00 00 00
+4C 89 E7
+48 31 F6
+48 31 D2
+0F 05
+48 83 F8 00
+78 @open_error
+49 89 C5
+
+; Mmap
+B8 09 00 00 00
+48 31 FF
+BE 00 00 40 00
+BA 03 00 00 00
+41 BA 22 00 00 00
+49 C7 C0 FF FF FF FF
+4D 31 C9
+0F 05
+48 83 F8 00
+78 @mmap_error
+49 89 C6
+
+; Read
+48 31 C0
+4C 89 EF
+4C 89 F6
+BA 00 00 40 00
+0F 05
+48 83 F8 00
+7E @read_error
+49 89 C7
+42 C6 04 3E 00
+
+; Scan
+4C 89 F3
+
+:scan_loop
+48 0F B6 0B
+48 85 C9
+74 @exit_success
+
+48 83 F9 20
+74 @skip_char
+48 83 F9 09
+74 @skip_char
+48 83 F9 0A
+74 @skip_char
+48 83 F9 0D
+74 @skip_char
+
+49 89 DC
+
+:token_loop
+48 FF C3
+48 0F B6 0B
+
+48 83 F9 20
+74 @token_end
+48 83 F9 09
+74 @token_end
+48 83 F9 0A
+74 @token_end
+48 83 F9 0D
+74 @token_end
+48 85 C9
+74 @token_end
+EB @token_loop
+
+:trampoline_scan
+EB @scan_loop
+
+:token_end
+51
+53
+
+; Print "TOKEN: "
+48 B8 54 4F 4B 45 4E 3A 20 00
+50
+B8 01 00 00 00
+BF 01 00 00 00
+48 89 E6
+BA 07 00 00 00
+0F 05
+58
+
+; Print Token
+B8 01 00 00 00
+BF 01 00 00 00
+4C 89 E6
+48 89 DA
+4C 29 E2
+0F 05
+
+; Print Newline
+B8 01 00 00 00
+BF 01 00 00 00
+48 C7 C2 0A 00 00 00
+52
+48 89 E6
+BA 01 00 00 00
+0F 05
+58
+
+5B
+59
+
+; FORCE EXIT
+EB @exit_success
+
+48 85 C9
+74 @exit_success
+
+EB @trampoline_scan
+
+:skip_char
+48 FF C3
+EB @trampoline_scan
+
+:usage_error
+B8 3C 00 00 00
+BF 01 00 00 00
+0F 05
+:open_error
+B8 3C 00 00 00
+BF 02 00 00 00
+0F 05
+:mmap_error
+B8 3C 00 00 00
+BF 03 00 00 00
+0F 05
+:read_error
+B8 3C 00 00 00
+BF 04 00 00 00
+0F 05
+:exit_success
+B8 3C 00 00 00
+31 FF
+0F 05
