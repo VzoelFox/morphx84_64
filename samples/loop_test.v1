@@ -1,0 +1,32 @@
+; Minimal ELF Header (64-bit) for asm_v1
+; We must write the header manually because asm_v1 is just an assembler, not a linker.
+7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 ; e_ident
+02 00 3e 00 01 00 00 00 ; e_type, e_machine, e_version
+78 00 40 00 00 00 00 00 ; e_entry (0x400078)
+40 00 00 00 00 00 00 00 ; e_phoff (0x40)
+00 00 00 00 00 00 00 00 ; e_shoff
+00 00 00 00 40 00 38 00 ; e_flags, e_ehsize, e_phentsize
+01 00 40 00 00 00 00 00 ; e_phnum, e_shentsize, e_shnum, e_shstrndx
+
+; Program Header
+01 00 00 00 05 00 00 00 ; p_type (LOAD), p_flags (R E)
+00 00 00 00 00 00 00 00 ; p_offset
+00 00 40 00 00 00 00 00 ; p_vaddr (0x400000)
+00 00 40 00 00 00 00 00 ; p_paddr
+C8 00 00 00 00 00 00 00 ; p_filesz (Header 120 + Code ~80 = 200 = C8)
+C8 00 00 00 00 00 00 00 ; p_memsz
+00 10 00 00 00 00 00 00 ; p_align
+
+; Code Section (Start at 0x400078)
+; Loop 5 times and exit with status 5
+
+48 31 C0        ; xor rax, rax (Counter)
+:loop_start
+48 FF C0        ; inc rax
+48 83 F8 05     ; cmp rax, 5
+7C @loop_start  ; jl loop_start (jump if less than 5)
+
+; Exit
+48 89 C7        ; mov rdi, rax (Exit Status = 5)
+B8 3C 00 00 00  ; mov eax, 60 (sys_exit)
+0F 05           ; syscall
