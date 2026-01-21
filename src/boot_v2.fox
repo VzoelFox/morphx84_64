@@ -1,0 +1,31 @@
+fungsi main
+  ; Construct "Hello from V2\n" (14 chars)
+  ; Stack grows down. Push reverse chunks.
+  ; "V2\n" -> 56 32 0A -> 0x000A3256
+  ; " from " -> 20 66 72 6F 6D 20 -> 0x206D6F726620
+  ; "Hello" -> 48 65 6C 6C 6F -> 0x6F6C6C6548
+
+  ; Push Chunk 3: "V2\n" (and padding)
+  mov rax, 668214 ; 0xA3256
+  push rax
+
+  ; Push Chunk 2: " from "
+  mov rax, 35651564531744 ; 0x206D6F726620
+  push rax
+
+  ; Push Chunk 1: "Hello"
+  mov rax, 478560413000 ; 0x6F6C6C6548
+  push rax
+
+  ; Write
+  mov rax, 1
+  mov rdi, 1
+  mov rsi, rsp
+  mov rdx, 14
+  syscall
+
+  ; Exit
+  mov rax, 60
+  mov rdi, 0
+  syscall
+tutup_fungsi
